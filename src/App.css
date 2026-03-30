@@ -288,7 +288,7 @@
 .lyric-cell__picked-wrap {
   min-height: clamp(40px, 7vmin, 56px);
   display: flex;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: center;
   margin-bottom: clamp(3px, 0.8vmin, 8px);
 }
@@ -298,7 +298,7 @@
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: center;
   gap: clamp(6px, 1.5vmin, 14px);
   width: 100%;
@@ -339,18 +339,18 @@
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: center;
   gap: clamp(6px, 1.5vmin, 14px);
   width: 100%;
 }
 
-/* 与 .lyric-dot-slot 同为等分列，避免低音点行 flex 均分而数字行随字宽导致圆点与数字错位（7 等窄字尤明显） */
+/* 与 .lyric-dot-slot 同为等分列；数字基线对齐（含下划线/纯数字/低音点数字） */
 .lyric-cell__picked-numbers > .picked__n {
   flex: 1 1 0;
   display: flex;
   justify-content: center;
-  align-items: flex-end;
+  align-items: baseline;
   min-width: 0;
 }
 
@@ -394,7 +394,7 @@
   line-height: 1.12;
   font-size: var(--lyric-note-size);
   display: inline-flex;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: center;
   min-height: 1.1em;
 }
