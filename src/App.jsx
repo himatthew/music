@@ -936,6 +936,14 @@ export default function App() {
                           </div>
                         );
                       })}
+                      {pi === 1 ? (
+                        <div className="full-sheet-cell full-sheet-cell--tail-zero" aria-hidden>
+                          <div className="lyric-cell__picked-wrap">
+                            <span className="full-sheet-trailing-zero">0</span>
+                          </div>
+                          <span className="lyric-cell__char full-sheet-tail-zero__lyric">&nbsp;</span>
+                        </div>
+                      ) : null}
                     </div>
                   </section>
                 );

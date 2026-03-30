@@ -244,7 +244,7 @@
   display: flex;
   width: 100%;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: stretch;
   gap: clamp(2px, 0.6vmin, 8px);
 }
 
@@ -253,6 +253,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: space-between;
+  gap: clamp(3px, 0.8vmin, 8px);
   min-width: 0;
   cursor: pointer;
   border-radius: 10px;
@@ -285,12 +287,15 @@
   border-radius: 1px;
 }
 
+/* 与 picked-notes 共用：无连音线的单音格也要相同上内边距，数字行才与有连音/双音格齐平 */
 .lyric-cell__picked-wrap {
+  --picked-slur-h: clamp(14px, 2.8vmin, 22px);
+  --picked-notes-pad-top: calc(var(--picked-slur-h) + 1px);
   min-height: clamp(40px, 7vmin, 56px);
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: center;
-  margin-bottom: clamp(3px, 0.8vmin, 8px);
+  flex-shrink: 0;
 }
 
 .lyric-cell__picked {
@@ -300,8 +305,23 @@
   flex-wrap: nowrap;
   align-items: baseline;
   justify-content: center;
+  align-self: flex-end;
   gap: clamp(6px, 1.5vmin, 14px);
   width: 100%;
+}
+
+.lyric-cell__picked:not(.lyric-cell__picked--pair):not(.lyric-cell__picked--stack) {
+  padding-top: var(--picked-notes-pad-top);
+  box-sizing: border-box;
+}
+
+/* 低音点画在数字下方不占高度，底部略留空避免压住歌词 */
+.lyric-cell__picked-wrap:has(.note-glyph--low) {
+  padding-bottom: 0.35em;
+}
+
+.ladder-line__num-wrap:has(.note-glyph--low) {
+  padding-bottom: 0.35em;
 }
 
 /* 双音 + 划线：数字、节奏线、低音点分层 */
@@ -319,20 +339,27 @@
   min-height: clamp(40px, 7vmin, 56px);
 }
 
+/* 连音线不占文档流首行；上内边距与单音格一致（变量来自 .lyric-cell__picked-wrap） */
 .lyric-cell__picked-notes {
   position: relative;
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding-top: var(--picked-notes-pad-top);
 }
 
 .picked-slur {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
   width: 100%;
-  height: clamp(14px, 2.8vmin, 22px);
+  height: var(--picked-slur-h);
   flex-shrink: 0;
-  margin-bottom: 1px;
+  margin: 0;
   overflow: visible;
+  pointer-events: none;
 }
 
 .lyric-cell__picked-numbers {
@@ -396,7 +423,6 @@
   display: inline-flex;
   align-items: baseline;
   justify-content: center;
-  min-height: 1.1em;
 }
 
 .picked__n--sheet .note-glyph__num {
@@ -416,14 +442,16 @@
 
 .note-glyph {
   display: inline-block;
+  line-height: 1.12;
+  vertical-align: baseline;
 }
 
+/* 低音点不占布局高度；行高与纯数字一致，避免 7 与 1 基线错位 */
 .note-glyph--low {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1;
-  gap: 1px;
+  position: relative;
+  display: inline-block;
+  vertical-align: baseline;
+  line-height: 1.12;
 }
 
 .note-glyph--low .note-glyph__num {
@@ -431,9 +459,18 @@
   text-align: center;
   font-variant-numeric: tabular-nums;
   min-width: 1ch;
+  line-height: 1.12;
 }
 
-/* 低音附点：实心圆，随字号略放大 */
+.note-glyph--low .note-glyph__dot {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  margin-top: 2px;
+  transform: translateX(-50%);
+}
+
+/* 低音附点：实心圆，随字号略放大（独立低音点行仍用 block） */
 .note-glyph__dot {
   display: block;
   flex-shrink: 0;
@@ -684,9 +721,30 @@
   display: flex;
   width: 100%;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: stretch;
   gap: clamp(2px, 0.6vmin, 8px);
   flex-wrap: nowrap;
+}
+
+/* 总谱第 2 个 full-sheet-page（当前即「微风…」页）：行尾一格 0 + 空歌词位 */
+.full-sheet-cell.full-sheet-cell--tail-zero {
+  flex: 0 0 auto;
+  margin-left: clamp(12px, 3vmin, 28px);
+  min-width: 0;
+}
+
+.full-sheet-trailing-zero {
+  color: var(--demo-cyan);
+  font-weight: 900;
+  font-family: "Arial Black", "PingFang SC", sans-serif;
+  font-size: var(--lyric-note-size);
+  line-height: 1.12;
+  font-variant-numeric: tabular-nums;
+}
+
+.full-sheet-tail-zero__lyric {
+  visibility: hidden;
+  user-select: none;
 }
 
 .full-sheet-cell {
@@ -694,6 +752,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: space-between;
+  gap: clamp(3px, 0.8vmin, 8px);
   min-width: 0;
 }
 
