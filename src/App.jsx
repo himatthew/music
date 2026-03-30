@@ -80,6 +80,19 @@ function emptySelections(len) {
   return Array.from({ length: len }, () => []);
 }
 
+function emptyLineRhythm(len) {
+  return Array.from({ length: len }, () => false);
+}
+
+function pickNoteIdFromPoint(clientX, clientY) {
+  const els = document.elementsFromPoint(clientX, clientY);
+  for (let k = 0; k < els.length; k++) {
+    const line = els[k].closest?.(".ladder-line[data-note-id]");
+    if (line) return line.getAttribute("data-note-id");
+  }
+  return null;
+}
+
 function findEntry(palette, id) {
   return palette.find((p) => p.id === id) ?? null;
 }
@@ -113,10 +126,18 @@ function LadderRow({ seg, onPick }) {
   const entry = { id: noteId, t: seg.t, low: !!seg.low };
   const isPick = seg.role === "pick";
   return (
-    <div className={"ladder-line " + (isPick ? "ladder-line--pick" : "ladder-line--hint")}>
+    <div
+      className={"ladder-line " + (isPick ? "ladder-line--pick" : "ladder-line--hint")}
+      data-note-id={noteId}
+      onClick={(e) => {
+        if (e.target.closest?.("button")) return;
+        onPick(noteId, e);
+      }}
+    >
       <div className="ladder-line__num-wrap">
         <button
           type="button"
+          data-note-id={noteId}
           className={isPick ? "ladder__pick" : "ladder__hint-btn"}
           onClick={(e) => onPick(noteId, e)}
           aria-label={"选择音符 " + seg.t + (seg.low ? " 低音" : "")}
@@ -231,14 +252,20 @@ export default function App() {
     SCENES.map((s) => ({
       currentIndex: 0,
       selections: emptySelections(s.lyrics.length),
+      lineRhythm: emptyLineRhythm(s.lyrics.length),
     }))
   );
   const [toast, setToast] = useState({ show: false, msg: "" });
   const toastTimerRef = useRef(0);
   const lyricPickedRefs = useRef([]);
+  const notationAreaRef = useRef(null);
+  const strokeRef = useRef(null);
+  const suppressClickRef = useRef(false);
   const deleteTimerRef = useRef(0);
   const [flyChip, setFlyChip] = useState(null);
   const [particleBurst, setParticleBurst] = useState(null);
+  /** 简谱区划线轨迹（相对 notation-area 的局部坐标） */
+  const [strokeTrail, setStrokeTrail] = useState(null);
 
   const scene = SCENES[sceneIndex];
   const state = states[sceneIndex];
@@ -256,6 +283,7 @@ export default function App() {
         return {
           currentIndex: x.currentIndex,
           selections: x.selections.map((a) => [...a]),
+          lineRhythm: [...x.lineRhythm],
         };
       });
       const st = { ...next[sceneIndex] };
@@ -267,6 +295,10 @@ export default function App() {
 
   const addNote = useCallback(
     (id, e) => {
+      if (suppressClickRef.current) {
+        suppressClickRef.current = false;
+        return;
+      }
       const idx = state.currentIndex;
       if (state.selections[idx].length >= 2) return;
       const pickedSlotIndex = state.selections[idx].length;
@@ -277,6 +309,7 @@ export default function App() {
           const arr = st.selections[i];
           if (arr.length >= 2) return;
           arr.push(id);
+          st.lineRhythm[i] = false;
         });
       });
       if (!fromRect) return;
@@ -296,6 +329,40 @@ export default function App() {
       });
     },
     [setCurrent, state.currentIndex, state.selections]
+  );
+
+  const applyLineStroke = useCallback(
+    (firstId, lastId, fromClientX, fromClientY) => {
+      const idx = state.currentIndex;
+      const pickedSlotIndex = 1;
+      flushSync(() => {
+        setCurrent((st) => {
+          const i = st.currentIndex;
+          st.selections[i] = [firstId, lastId];
+          st.lineRhythm[i] = true;
+        });
+      });
+      const hit = document.elementFromPoint(fromClientX, fromClientY);
+      const line = hit?.closest?.(".ladder-line[data-note-id]");
+      const fromBtn = line?.querySelector?.("button[data-note-id]");
+      const fromRect = fromBtn?.getBoundingClientRect() ?? line?.getBoundingClientRect();
+      if (!fromRect) return;
+      requestAnimationFrame(() => {
+        const wrap = lyricPickedRefs.current[idx];
+        const node = wrap?.querySelector(".picked__n:last-child");
+        const toRect = node?.getBoundingClientRect();
+        if (!toRect) return;
+        setFlyChip({
+          key: Date.now(),
+          fromRect,
+          toRect,
+          noteId: lastId,
+          lyricRowIndex: idx,
+          pickedSlotIndex,
+        });
+      });
+    },
+    [setCurrent, state.currentIndex]
   );
 
   const clearFlyChip = useCallback(() => {
@@ -326,6 +393,7 @@ export default function App() {
         const i = st.currentIndex;
         const a = st.selections[i];
         if (a.length) a.pop();
+        if (a.length < 2) st.lineRhythm[i] = false;
       });
     });
     if (rect && rect.width >= 1 && rect.height >= 1) {
@@ -362,6 +430,134 @@ export default function App() {
     setParticleBurst(null);
   }, [sceneIndex]);
 
+  /** 不在父级 setPointerCapture，否则按钮收不到 click。划线用 document 捕获阶段跟踪整段手势。 */
+  const onNotationPointerDown = useCallback(
+    (e) => {
+      const row = e.target.closest?.(".ladder-line[data-note-id]");
+      if (!row) return;
+      const id = row.getAttribute("data-note-id");
+      if (!id) return;
+      const btn = row.querySelector?.("button[data-note-id]");
+      if (!btn) return;
+      const pointerId = e.pointerId;
+      const areaEl = notationAreaRef.current;
+      const areaRect = areaEl?.getBoundingClientRect();
+      const trailPt =
+        areaRect != null
+          ? { x: e.clientX - areaRect.left, y: e.clientY - areaRect.top }
+          : null;
+      strokeRef.current = {
+        pointerId,
+        visited: [id],
+        lastId: id,
+        lastClientX: e.clientX,
+        lastClientY: e.clientY,
+        startX: e.clientX,
+        startY: e.clientY,
+        startButton: btn,
+        maxDist: 0,
+        trailPoints: trailPt ? [trailPt] : [],
+        trailW: areaRect?.width ?? 0,
+        trailH: areaRect?.height ?? 0,
+      };
+      if (trailPt && areaRect) {
+        setStrokeTrail({
+          points: [trailPt],
+          w: areaRect.width,
+          h: areaRect.height,
+        });
+      }
+
+      /* 整行（含数字后虚线）捕获指针；仅在按钮上捕获时，点在虚线上会失败 */
+      try {
+        row.setPointerCapture(e.pointerId);
+      } catch (_) {}
+
+      const docOpts = { capture: true, passive: false };
+
+      function onDocMove(ev) {
+        if (ev.pointerId !== pointerId) return;
+        const s = strokeRef.current;
+        if (!s) return;
+        s.lastClientX = ev.clientX;
+        s.lastClientY = ev.clientY;
+        const d = Math.hypot(ev.clientX - s.startX, ev.clientY - s.startY);
+        s.maxDist = Math.max(s.maxDist, d);
+        if (d > 6) ev.preventDefault();
+        const ar = notationAreaRef.current?.getBoundingClientRect();
+        if (ar && s.trailPoints) {
+          s.trailPoints.push({
+            x: ev.clientX - ar.left,
+            y: ev.clientY - ar.top,
+          });
+          s.trailW = ar.width;
+          s.trailH = ar.height;
+          setStrokeTrail({
+            points: s.trailPoints.slice(),
+            w: ar.width,
+            h: ar.height,
+          });
+        }
+        const nid = pickNoteIdFromPoint(ev.clientX, ev.clientY);
+        if (nid && nid !== s.lastId) {
+          s.visited.push(nid);
+          s.lastId = nid;
+        }
+      }
+
+      function cleanup() {
+        setStrokeTrail(null);
+        try {
+          row.releasePointerCapture(pointerId);
+        } catch (_) {}
+        document.removeEventListener("pointermove", onDocMove, docOpts);
+        document.removeEventListener("pointerup", onDocUp, docOpts);
+        document.removeEventListener("pointercancel", onDocCancel, docOpts);
+      }
+
+      function onDocUp(ev) {
+        if (ev.pointerId !== pointerId) return;
+        cleanup();
+        const s = strokeRef.current;
+        strokeRef.current = null;
+        if (!s) return;
+
+        const TAP_MOVE = 12;
+        const moved = (s.maxDist || 0) > TAP_MOVE;
+
+        if (s.visited.length >= 2) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          suppressClickRef.current = true;
+          applyLineStroke(
+            s.visited[0],
+            s.visited[s.visited.length - 1],
+            s.lastClientX,
+            s.lastClientY
+          );
+          return;
+        }
+        if (s.visited.length === 1 && moved) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          addNote(s.visited[0], { currentTarget: s.startButton });
+          suppressClickRef.current = true;
+        }
+      }
+
+      function onDocCancel(ev) {
+        if (ev.pointerId !== pointerId) return;
+        cleanup();
+        strokeRef.current = null;
+      }
+
+      document.addEventListener("pointermove", onDocMove, docOpts);
+      document.addEventListener("pointerup", onDocUp, docOpts);
+      document.addEventListener("pointercancel", onDocCancel, docOpts);
+    },
+    [applyLineStroke, addNote]
+  );
+
   const palette = useMemo(() => scene.palette, [scene]);
   const { left: ladderLeft, right: ladderRight } = scene.pairLadders;
   const flyEntry = flyChip ? findEntry(palette, flyChip.noteId) : null;
@@ -378,7 +574,38 @@ export default function App() {
           <h1 className="scene-card__title">作曲</h1>
 
           <div className="scene-card__middle">
-            <div className="notation-area">
+            <div ref={notationAreaRef} className="notation-area" onPointerDown={onNotationPointerDown}>
+              {strokeTrail &&
+                strokeTrail.points.length > 0 &&
+                strokeTrail.w > 0 &&
+                strokeTrail.h > 0 && (
+                  <svg
+                    className="notation-trail"
+                    aria-hidden
+                    viewBox={"0 0 " + strokeTrail.w + " " + strokeTrail.h}
+                    preserveAspectRatio="none"
+                  >
+                    {strokeTrail.points.length === 1 ? (
+                      <circle
+                        cx={strokeTrail.points[0].x}
+                        cy={strokeTrail.points[0].y}
+                        r="5"
+                        fill="var(--demo-cyan)"
+                        fillOpacity="0.75"
+                      />
+                    ) : (
+                      <polyline
+                        fill="none"
+                        stroke="var(--demo-cyan)"
+                        strokeWidth="6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeOpacity="0.88"
+                        points={strokeTrail.points.map((p) => p.x + "," + p.y).join(" ")}
+                      />
+                    )}
+                  </svg>
+                )}
               <div className="notation-pair" aria-label="简谱两列">
                 <NotationColumn segments={ladderLeft} onPick={addNote} />
                 <NotationColumn segments={ladderRight} onPick={addNote} />
@@ -388,6 +615,7 @@ export default function App() {
               <div className="lyric-row">
                 {scene.lyrics.map((ch, i) => {
                   const sel = state.selections[i];
+                  const showRhythm = state.lineRhythm[i] && sel.length === 2;
                   const isCurrent = i === state.currentIndex;
                   return (
                     <div
@@ -410,7 +638,9 @@ export default function App() {
                       }}
                     >
                       <div
-                        className="lyric-cell__picked"
+                        className={
+                          "lyric-cell__picked" + (showRhythm ? " lyric-cell__picked--rhythm" : "")
+                        }
                         ref={(el) => {
                           lyricPickedRefs.current[i] = el;
                         }}
