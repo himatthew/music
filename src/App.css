@@ -105,21 +105,23 @@
   user-select: none;
 }
 
-/* 划线轨迹在简谱下方：数字与虚线在上层，避免粗线盖住虚线「消失」；pointer-events:none 不参与命中 */
+/* 轨迹在上层才能看见蓝线；pointer-events:none 不参与命中，命中走 pickLadderHitFromPoint 矩形 */
 .notation-trail {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
   overflow: visible;
+  background: transparent;
+  fill: none;
 }
 
 /* 多行：每行一条 grid，左右格同一水平线，第 i 行与第 i 行对齐 */
 .notation-pair {
   position: relative;
-  z-index: 3;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: clamp(4px, 0.8vmin, 8px);

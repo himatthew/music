@@ -87,23 +87,23 @@ function emptyLineRhythm(len) {
 
 /** 左右同音高共用 data-note-id，划线需用 data-stroke-key 区分格位 */
 function pickLadderHitFromPoint(clientX, clientY) {
-  const els = document.elementsFromPoint(clientX, clientY);
-  for (let k = 0; k < els.length; k++) {
-    const el = els[k];
-    /* 轨迹 SVG 盖在简谱上时，部分环境仍会把 polyline/circle 算进栈；飞字/粒子层也会挡命中 */
-    if (el.closest?.(".notation-trail") || el.closest?.(".fly-chip") || el.closest?.(".particle-burst")) continue;
-    const line = el.closest?.(".ladder-line[data-stroke-key]");
-    if (line) {
-      const strokeKey = line.getAttribute("data-stroke-key");
-      const noteId = line.getAttribute("data-note-id");
-      if (strokeKey && noteId) return { strokeKey, noteId };
-    }
-  }
+  /* 优先矩形命中：不依赖 elementsFromPoint 穿透轨迹 SVG / 触屏栈不完整，避免选不中 */
   const lines = document.querySelectorAll(".notation-area .ladder-line[data-stroke-key]");
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
     const r = line.getBoundingClientRect();
     if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) {
+      const strokeKey = line.getAttribute("data-stroke-key");
+      const noteId = line.getAttribute("data-note-id");
+      if (strokeKey && noteId) return { strokeKey, noteId };
+    }
+  }
+  const els = document.elementsFromPoint(clientX, clientY);
+  for (let k = 0; k < els.length; k++) {
+    const el = els[k];
+    if (el.closest?.(".notation-trail") || el.closest?.(".fly-chip") || el.closest?.(".particle-burst")) continue;
+    const line = el.closest?.(".ladder-line[data-stroke-key]");
+    if (line) {
       const strokeKey = line.getAttribute("data-stroke-key");
       const noteId = line.getAttribute("data-note-id");
       if (strokeKey && noteId) return { strokeKey, noteId };
@@ -743,6 +743,7 @@ export default function App() {
                   <svg
                     className="notation-trail"
                     aria-hidden
+                    fill="none"
                     viewBox={"0 0 " + strokeTrail.w + " " + strokeTrail.h}
                     preserveAspectRatio="none"
                   >
