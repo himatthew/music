@@ -89,7 +89,10 @@ function emptyLineRhythm(len) {
 function pickLadderHitFromPoint(clientX, clientY) {
   const els = document.elementsFromPoint(clientX, clientY);
   for (let k = 0; k < els.length; k++) {
-    const line = els[k].closest?.(".ladder-line[data-stroke-key]");
+    const el = els[k];
+    /* 轨迹 SVG 盖在简谱上时，部分环境仍会把 polyline/circle 算进栈；飞字/粒子层也会挡命中 */
+    if (el.closest?.(".notation-trail") || el.closest?.(".fly-chip") || el.closest?.(".particle-burst")) continue;
+    const line = el.closest?.(".ladder-line[data-stroke-key]");
     if (line) {
       const strokeKey = line.getAttribute("data-stroke-key");
       const noteId = line.getAttribute("data-note-id");
