@@ -1,5 +1,6 @@
 /* 全屏背景：--app-bg 由 App.jsx 注入，兼容 GitHub Pages 子路径 */
 .app {
+  -webkit-touch-callout: none;
   --demo-cyan: #00bcd4;
   --demo-cyan-deep: #00acc1;
   --demo-gray: #aaaaaa;

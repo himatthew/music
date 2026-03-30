@@ -22,6 +22,10 @@ function createWindow() {
   });
   win.once("ready-to-show", () => win.show());
 
+  win.webContents.on("context-menu", (event) => {
+    event.preventDefault();
+  });
+
   if (devUrl) {
     win.loadURL(devUrl);
     win.webContents.openDevTools({ mode: "detach" });

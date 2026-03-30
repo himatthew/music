@@ -543,6 +543,13 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [fullSheetOpen]);
 
+  /** 触控长按/部分浏览器会合成 contextmenu，易误判为「右击」；捕获阶段统一拦截 */
+  useEffect(() => {
+    const onCtx = (e) => e.preventDefault();
+    document.addEventListener("contextmenu", onCtx, { capture: true });
+    return () => document.removeEventListener("contextmenu", onCtx, { capture: true });
+  }, []);
+
   /** 不在父级 setPointerCapture，否则按钮收不到 click。划线用 document 捕获阶段跟踪整段手势。 */
   const onNotationPointerDown = useCallback(
     (e) => {
