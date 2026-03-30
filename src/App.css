@@ -86,10 +86,14 @@
   gap: clamp(6px, 1.5vmin, 14px);
 }
 
-/* 中间仅两列均分（与 imgs1 demo 一致），与底部分歌词行分离 */
+/* 中间简谱区：与底部分歌词行分离 */
 .notation-area {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
   min-height: clamp(200px, 36vmin, 340px);
   padding: clamp(6px, 1.5vmin, 14px) clamp(12px, 3vmin, 28px) 0;
   /* 避免触摸滑动被当成页面滚动，否则 pointermove 很少触发、划线失败 */
@@ -107,34 +111,35 @@
   overflow: visible;
 }
 
+/* 多行：每行一条 grid，左右格同一水平线，第 i 行与第 i 行对齐 */
 .notation-pair {
   position: relative;
   z-index: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: start;
-  justify-items: stretch;
-  gap: clamp(16px, 4vmin, 40px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(4px, 0.8vmin, 8px);
+  width: 100%;
   min-height: clamp(190px, 34vmin, 300px);
 }
 
-.notation-col {
+.notation-pair__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(16px, 4vmin, 40px);
+  align-items: stretch;
   width: 100%;
+}
+
+.notation-pair__cell {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
+  justify-content: center;
 }
 
-/* 简谱柱：布局仍为「数字 + 右侧虚线」；数字在固定宽区内水平居中，灰/蓝共一条竖直中轴；左右列顶端对齐 */
-.notation-col__stack {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: clamp(4px, 0.8vmin, 8px);
-  width: 100%;
+.notation-pair__cell--empty {
+  min-height: clamp(44px, 7vmin, 56px);
+  pointer-events: none;
 }
 
 .ladder-line {
@@ -145,6 +150,7 @@
   width: 100%;
   gap: 0;
   cursor: pointer;
+  min-height: clamp(44px, 7vmin, 56px);
 }
 
 .ladder-line__num-wrap {

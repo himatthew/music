@@ -4,7 +4,7 @@ import "./App.css";
 
 /**
  * 满 2 个音符后不再追加，需先删除。
- * pairLadders：左右两列均分；pick 大号青色、hint 小号灰色，均可点；id 可省略，由 resolveNoteId 推断。
+ * pairLadders：左右两列按音高对齐同行；pick 大号青色、hint 小号灰色，均可点；id 可省略，由 resolveNoteId 推断。
  */
 /** 每句字数，用于歌词行两句之间的视觉分隔 */
 const LYRIC_CHARS_PER_PHRASE = 4;
@@ -107,6 +107,20 @@ function resolveNoteId(seg) {
     if (t === "6") return "L6";
   }
   return t;
+}
+
+/** 简谱纵轴：高音 → 低音（与 SCENES 中自上而下书写顺序一致） */
+const PITCH_ROW_ORDER = ["5", "4", "3", "2", "1", "7", "L7", "L6"];
+
+function pitchRowIdsFromSides(left, right) {
+  const ids = new Set();
+  for (const seg of left) ids.add(resolveNoteId(seg));
+  for (const seg of right) ids.add(resolveNoteId(seg));
+  return Array.from(ids).sort((a, b) => {
+    const ia = PITCH_ROW_ORDER.indexOf(a);
+    const ib = PITCH_ROW_ORDER.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
 }
 
 function NoteGlyph({ entry, className }) {
@@ -316,16 +330,23 @@ function ParticleBurstOverlay({ rect, burstKey }) {
   );
 }
 
-function NotationColumn({ segments, onPick }) {
-  return (
-    <div className="notation-col">
-      <div className="notation-col__stack">
-        {segments.map((seg, k) => (
-          <LadderRow key={k} seg={seg} onPick={onPick} />
-        ))}
+/** 按音高分行：同一音级（如 3）左右必在同一水平线；缺的一侧占位 */
+function NotationPairRows({ left, right, onPick }) {
+  const rowIds = pitchRowIdsFromSides(left, right);
+  return rowIds.map((id) => {
+    const leftSeg = left.find((s) => resolveNoteId(s) === id) ?? null;
+    const rightSeg = right.find((s) => resolveNoteId(s) === id) ?? null;
+    return (
+      <div key={id} className="notation-pair__row">
+        <div className="notation-pair__cell">
+          {leftSeg ? <LadderRow seg={leftSeg} onPick={onPick} /> : <div className="notation-pair__cell--empty" aria-hidden />}
+        </div>
+        <div className="notation-pair__cell">
+          {rightSeg ? <LadderRow seg={rightSeg} onPick={onPick} /> : <div className="notation-pair__cell--empty" aria-hidden />}
+        </div>
       </div>
-    </div>
-  );
+    );
+  });
 }
 
 export default function App() {
@@ -704,8 +725,7 @@ export default function App() {
                   </svg>
                 )}
               <div className="notation-pair" aria-label="简谱两列">
-                <NotationColumn segments={ladderLeft} onPick={addNote} />
-                <NotationColumn segments={ladderRight} onPick={addNote} />
+                <NotationPairRows left={ladderLeft} right={ladderRight} onPick={addNote} />
               </div>
             </div>
             <div className="lyric-strip">
