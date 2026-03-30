@@ -9,39 +9,8 @@ import "./App.css";
 /** 每句字数，用于歌词行两句之间的视觉分隔 */
 const LYRIC_CHARS_PER_PHRASE = 4;
 
+/** 第一页 = 清晨阳光洒在田野，第二页 = 微风轻拂叶尖摇（与原顺序对调） */
 const SCENES = [
-  {
-    id: "s1",
-    lyrics: ["微", "风", "轻", "拂", "叶", "尖", "摇"],
-    palette: [
-      { id: "1", t: "1" },
-      { id: "2", t: "2" },
-      { id: "3", t: "3" },
-      { id: "4", t: "4" },
-      { id: "5", t: "5" },
-      { id: "6", t: "6" },
-      { id: "7", t: "7" },
-      { id: "L7", t: "7", low: true },
-      { id: "L6", t: "6", low: true },
-    ],
-    pairLadders: {
-      left: [
-        { role: "pick", id: "3", t: "3" },
-        { role: "hint", id: "2", t: "2" },
-        { role: "pick", id: "1", t: "1" },
-        { role: "hint", id: "7", t: "7" },
-        { role: "pick", id: "L6", t: "6", low: true },
-      ],
-      right: [
-        { role: "pick", id: "4", t: "4" },
-        { role: "hint", id: "3", t: "3" },
-        { role: "hint", id: "2", t: "2" },
-        { role: "pick", id: "1", t: "1" },
-        { role: "hint", id: "7", t: "7" },
-        { role: "pick", id: "L6", t: "6", low: true },
-      ],
-    },
-  },
   {
     id: "s2",
     lyrics: ["清", "晨", "阳", "光", "洒", "在", "田", "野"],
@@ -71,6 +40,38 @@ const SCENES = [
         { role: "pick", id: "2", t: "2" },
         { role: "hint", id: "1", t: "1" },
         { role: "pick", id: "L7", t: "7", low: true },
+      ],
+    },
+  },
+  {
+    id: "s1",
+    lyrics: ["微", "风", "轻", "拂", "叶", "尖", "摇"],
+    palette: [
+      { id: "1", t: "1" },
+      { id: "2", t: "2" },
+      { id: "3", t: "3" },
+      { id: "4", t: "4" },
+      { id: "5", t: "5" },
+      { id: "6", t: "6" },
+      { id: "7", t: "7" },
+      { id: "L7", t: "7", low: true },
+      { id: "L6", t: "6", low: true },
+    ],
+    pairLadders: {
+      left: [
+        { role: "pick", id: "3", t: "3" },
+        { role: "hint", id: "2", t: "2" },
+        { role: "pick", id: "1", t: "1" },
+        { role: "hint", id: "L7", t: "7", low: true },
+        { role: "pick", id: "L6", t: "6", low: true },
+      ],
+      right: [
+        { role: "pick", id: "4", t: "4" },
+        { role: "hint", id: "3", t: "3" },
+        { role: "hint", id: "2", t: "2" },
+        { role: "pick", id: "1", t: "1" },
+        { role: "hint", id: "L7", t: "7", low: true },
+        { role: "pick", id: "L6", t: "6", low: true },
       ],
     },
   },
@@ -119,6 +120,87 @@ function NoteGlyph({ entry, className }) {
     );
   }
   return <span className={"note-glyph " + (className || "")}>{entry.t}</span>;
+}
+
+function isPageComplete(st, lyricsLen) {
+  return st.selections.length === lyricsLen && st.selections.every((a) => a.length > 0);
+}
+
+/** 总谱 / 预览：与主界面相同的双音/节奏/低音点布局（无飞入） */
+function LyricPickedDisplay({ sel, lineRhythm, palette }) {
+  const showRhythm = lineRhythm && sel.length === 2;
+  const pair = sel.length === 2;
+  if (showRhythm) {
+    return (
+      <div className="lyric-cell__picked lyric-cell__picked--stack">
+        <div className="lyric-cell__picked-notes">
+          <svg className="picked-slur" viewBox="0 -3 100 26" preserveAspectRatio="none" aria-hidden>
+            <path
+              d="M 30 18 Q 50 -2 70 18"
+              fill="none"
+              stroke="var(--demo-cyan)"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+            />
+          </svg>
+          <div className="lyric-cell__picked-numbers">
+            {sel.map((nid, j) => {
+              const entry = findEntry(palette, nid);
+              return (
+                <span key={j + "-" + nid} className="picked__n picked__n--sheet">
+                  <span className="note-glyph__num">{entry?.t}</span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+        <div className="lyric-cell__rhythm-line" aria-hidden />
+        <div className="lyric-cell__low-dots">
+          {sel.map((nid, j) => {
+            const entry = findEntry(palette, nid);
+            return (
+              <span key={"d-" + j} className="lyric-dot-slot">
+                {entry?.low ? <span className="note-glyph__dot note-glyph__dot--below" /> : null}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  if (pair) {
+    return (
+      <div className="lyric-cell__picked lyric-cell__picked--pair">
+        <div className="lyric-cell__picked-notes">
+          <svg className="picked-slur" viewBox="0 -3 100 26" preserveAspectRatio="none" aria-hidden>
+            <path
+              d="M 30 18 Q 50 -2 70 18"
+              fill="none"
+              stroke="var(--demo-cyan)"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+            />
+          </svg>
+          <div className="lyric-cell__picked-numbers">
+            {sel.map((nid, j) => (
+              <span key={j + "-" + nid} className="picked__n">
+                <NoteGlyph entry={findEntry(palette, nid)} />
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="lyric-cell__picked">
+      {sel.map((nid, j) => (
+        <span key={j + "-" + nid} className="picked__n">
+          <NoteGlyph entry={findEntry(palette, nid)} />
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function LadderRow({ seg, onPick }) {
@@ -266,6 +348,7 @@ export default function App() {
   const [particleBurst, setParticleBurst] = useState(null);
   /** 简谱区划线轨迹（相对 notation-area 的局部坐标） */
   const [strokeTrail, setStrokeTrail] = useState(null);
+  const [fullSheetOpen, setFullSheetOpen] = useState(false);
 
   const scene = SCENES[sceneIndex];
   const state = states[sceneIndex];
@@ -409,7 +492,7 @@ export default function App() {
   const confirm = useCallback(() => {
     const idx = state.currentIndex;
     if (idx >= scene.lyrics.length - 1) {
-      showToast("本场景已完成");
+      showToast("本页已完成");
       return;
     }
     setCurrent((st) => {
@@ -429,6 +512,15 @@ export default function App() {
     setFlyChip(null);
     setParticleBurst(null);
   }, [sceneIndex]);
+
+  useEffect(() => {
+    if (!fullSheetOpen) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setFullSheetOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullSheetOpen]);
 
   /** 不在父级 setPointerCapture，否则按钮收不到 click。划线用 document 捕获阶段跟踪整段手势。 */
   const onNotationPointerDown = useCallback(
@@ -562,6 +654,11 @@ export default function App() {
   const { left: ladderLeft, right: ladderRight } = scene.pairLadders;
   const flyEntry = flyChip ? findEntry(palette, flyChip.noteId) : null;
 
+  const allPagesComplete = useMemo(
+    () => states.every((st, idx) => isPageComplete(st, SCENES[idx].lyrics.length)),
+    [states]
+  );
+
   return (
     <div
       className="app"
@@ -570,7 +667,7 @@ export default function App() {
       }}
     >
       <div className="stage">
-        <section className="scene-card" aria-label="作曲场景">
+        <section className="scene-card" aria-label="作曲">
           <h1 className="scene-card__title">作曲</h1>
 
           <div className="scene-card__middle">
@@ -638,28 +735,124 @@ export default function App() {
                       }}
                     >
                       <div
-                        className={
-                          "lyric-cell__picked" + (showRhythm ? " lyric-cell__picked--rhythm" : "")
-                        }
+                        className="lyric-cell__picked-wrap"
                         ref={(el) => {
                           lyricPickedRefs.current[i] = el;
                         }}
                       >
-                        {sel.map((nid, j) => {
-                          const entry = findEntry(palette, nid);
-                          const hideForFly =
+                        {(() => {
+                          const pair = sel.length === 2;
+                          const stacked = pair && showRhythm;
+                          const hide = (j) =>
                             flyChip &&
                             flyChip.lyricRowIndex === i &&
                             flyChip.pickedSlotIndex === j;
+                          if (stacked) {
+                            return (
+                              <div className="lyric-cell__picked lyric-cell__picked--stack">
+                                <div className="lyric-cell__picked-notes">
+                                  <svg
+                                    className="picked-slur"
+                                    viewBox="0 -3 100 26"
+                                    preserveAspectRatio="none"
+                                    aria-hidden
+                                  >
+                                    <path
+                                      d="M 30 18 Q 50 -2 70 18"
+                                      fill="none"
+                                      stroke="var(--demo-cyan)"
+                                      strokeWidth="2.4"
+                                      strokeLinecap="round"
+                                    />
+                                  </svg>
+                                  <div className="lyric-cell__picked-numbers">
+                                    {sel.map((nid, j) => {
+                                      const entry = findEntry(palette, nid);
+                                      return (
+                                        <span
+                                          key={j + "-" + nid}
+                                          className={
+                                            "picked__n picked__n--sheet" +
+                                            (hide(j) ? " picked__n--fly-hidden" : "")
+                                          }
+                                        >
+                                          <span className="note-glyph__num">{entry?.t}</span>
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                                <div className="lyric-cell__rhythm-line" aria-hidden />
+                                <div className="lyric-cell__low-dots">
+                                  {sel.map((nid, j) => {
+                                    const entry = findEntry(palette, nid);
+                                    return (
+                                      <span key={"d-" + j} className="lyric-dot-slot">
+                                        {entry?.low ? (
+                                          <span className="note-glyph__dot note-glyph__dot--below" />
+                                        ) : null}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (pair) {
+                            return (
+                              <div className="lyric-cell__picked lyric-cell__picked--pair">
+                                <div className="lyric-cell__picked-notes">
+                                  <svg
+                                    className="picked-slur"
+                                    viewBox="0 -3 100 26"
+                                    preserveAspectRatio="none"
+                                    aria-hidden
+                                  >
+                                    <path
+                                      d="M 30 18 Q 50 -2 70 18"
+                                      fill="none"
+                                      stroke="var(--demo-cyan)"
+                                      strokeWidth="2.4"
+                                      strokeLinecap="round"
+                                    />
+                                  </svg>
+                                  <div className="lyric-cell__picked-numbers">
+                                    {sel.map((nid, j) => {
+                                      const entry = findEntry(palette, nid);
+                                      return (
+                                        <span
+                                          key={j + "-" + nid}
+                                          className={
+                                            "picked__n" + (hide(j) ? " picked__n--fly-hidden" : "")
+                                          }
+                                        >
+                                          <NoteGlyph entry={entry} />
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
                           return (
-                            <span
-                              key={j + "-" + nid}
-                              className={"picked__n" + (hideForFly ? " picked__n--fly-hidden" : "")}
-                            >
-                              <NoteGlyph entry={entry} />
-                            </span>
+                            <div className="lyric-cell__picked">
+                              {sel.map((nid, j) => {
+                                const entry = findEntry(palette, nid);
+                                return (
+                                  <span
+                                    key={j + "-" + nid}
+                                    className={
+                                      "picked__n" + (hide(j) ? " picked__n--fly-hidden" : "")
+                                    }
+                                  >
+                                    <NoteGlyph entry={entry} />
+                                  </span>
+                                );
+                              })}
+                            </div>
                           );
-                        })}
+                        })()}
                       </div>
                       <span className="lyric-cell__char">{ch}</span>
                     </div>
@@ -670,6 +863,11 @@ export default function App() {
           </div>
 
           <footer className="actions">
+            {allPagesComplete && (
+              <button type="button" className="btn-secondary" onClick={() => setFullSheetOpen(true)}>
+                生成总谱
+              </button>
+            )}
             <button type="button" className="btn-secondary" onClick={deleteLast}>
               删除
             </button>
@@ -679,18 +877,73 @@ export default function App() {
           </footer>
         </section>
 
-        <nav className="scene-nav scene-nav--below" aria-label="场景切换">
+        <nav className="scene-nav scene-nav--below" aria-label="页切换">
           <button type="button" className="btn-ghost" onClick={() => goScene(-1)}>
-            上一场景
+            上一页
           </button>
           <span className="scene-nav__label">
-            场景 {sceneIndex + 1} / {SCENES.length}
+            第 {sceneIndex + 1} 页 / 共 {SCENES.length} 页
           </span>
           <button type="button" className="btn-ghost" onClick={() => goScene(1)}>
-            下一场景
+            下一页
           </button>
         </nav>
       </div>
+
+      {fullSheetOpen && (
+        <div
+          className="full-sheet-overlay"
+          role="presentation"
+          onClick={() => setFullSheetOpen(false)}
+        >
+          <div
+            className="full-sheet-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="完整歌谱"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="full-sheet-head">
+              <h2 className="full-sheet-title">完整歌谱</h2>
+              <button type="button" className="full-sheet-close" onClick={() => setFullSheetOpen(false)}>
+                关闭
+              </button>
+            </div>
+            <div className="full-sheet-body">
+              {SCENES.map((pg, pi) => {
+                const st = states[pi];
+                return (
+                  <section key={pg.id} className="full-sheet-page">
+                    <h3 className="full-sheet-page-title">第 {pi + 1} 页</h3>
+                    <div className="full-sheet-lyric-row">
+                      {pg.lyrics.map((ch, i) => {
+                        const sel = st.selections[i];
+                        const lr = st.lineRhythm[i];
+                        return (
+                          <div
+                            key={i}
+                            className={
+                              "full-sheet-cell" +
+                              (i > 0 && i % LYRIC_CHARS_PER_PHRASE === 0
+                                ? " full-sheet-cell--bar"
+                                : "")
+                            }
+                          >
+                            <div className="lyric-cell__picked-wrap">
+                              <LyricPickedDisplay sel={sel} lineRhythm={lr} palette={pg.palette} />
+                            </div>
+                            <span className="lyric-cell__char">{ch}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         className={"toast" + (toast.show ? " toast--show" : "")}

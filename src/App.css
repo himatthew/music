@@ -5,6 +5,9 @@
   --demo-gray: #aaaaaa;
   --demo-sky: #e1f5fe;
   --demo-lyric: #111111;
+  --notation-pick-size: clamp(1.65rem, 5.2vmin, 2.35rem);
+  --notation-hint-size: clamp(1.05rem, 3.2vmin, 1.38rem);
+  --lyric-note-size: clamp(1.25rem, 3.8vmin, 1.6rem);
 
   min-height: 100%;
   min-height: 100dvh;
@@ -192,9 +195,9 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  line-height: 1.2;
+  line-height: 1.15;
   color: var(--demo-gray);
-  font-size: clamp(1.05rem, 3.4vmin, 1.45rem);
+  font-size: var(--notation-hint-size);
   font-weight: 700;
   font-family: "Arial Black", "PingFang SC", "Microsoft YaHei", sans-serif;
   text-align: center;
@@ -214,9 +217,9 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  line-height: 1.1;
+  line-height: 1.12;
   color: var(--demo-cyan);
-  font-size: clamp(1.75rem, 6vmin, 2.65rem);
+  font-size: var(--notation-pick-size);
   font-weight: 900;
   font-family: "Arial Black", "PingFang SC", "Microsoft YaHei", sans-serif;
   letter-spacing: 0.02em;
@@ -260,9 +263,20 @@
   box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.55);
 }
 
-/* 每句首字（第 5、9… 字）略左移出间距，区分上下两句 */
+/* 每句首字：小节线（蓝）+ 句间距 */
 .lyric-cell--phrase-start {
-  margin-left: clamp(36px, 6.5vmin, 80px);
+  margin-left: clamp(32px, 6vmin, 76px);
+  border-left: 3px solid var(--demo-cyan);
+  padding-left: clamp(8px, 1.6vmin, 16px);
+  box-sizing: border-box;
+}
+
+.lyric-cell__picked-wrap {
+  min-height: clamp(40px, 7vmin, 56px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: clamp(3px, 0.8vmin, 8px);
 }
 
 .lyric-cell__picked {
@@ -273,33 +287,112 @@
   align-items: flex-end;
   justify-content: center;
   gap: clamp(6px, 1.5vmin, 14px);
-  margin-bottom: clamp(3px, 0.8vmin, 8px);
+  width: 100%;
 }
 
-/* 划线输入：首尾两音下方的节奏线（简谱下划线） */
-.lyric-cell__picked--rhythm {
+/* 双音 + 划线：数字、节奏线、低音点分层 */
+.lyric-cell__picked--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  min-height: clamp(48px, 9vmin, 72px);
+}
+
+.lyric-cell__picked--pair {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  min-height: clamp(40px, 7vmin, 56px);
+}
+
+.lyric-cell__picked-notes {
   position: relative;
-  padding-bottom: clamp(5px, 1.2vmin, 10px);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.lyric-cell__picked--rhythm::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+.picked-slur {
+  width: 100%;
+  height: clamp(14px, 2.8vmin, 22px);
+  flex-shrink: 0;
+  margin-bottom: 1px;
+  overflow: visible;
+}
+
+.lyric-cell__picked-numbers {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(6px, 1.5vmin, 14px);
+  width: 100%;
+}
+
+/* 与 .lyric-dot-slot 同为等分列，避免低音点行 flex 均分而数字行随字宽导致圆点与数字错位（7 等窄字尤明显） */
+.lyric-cell__picked-numbers > .picked__n {
+  flex: 1 1 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.lyric-cell__rhythm-line {
+  width: 100%;
   height: clamp(2px, 0.45vmin, 4px);
+  margin-top: clamp(3px, 0.6vmin, 6px);
   border-radius: 2px;
   background: var(--demo-cyan);
-  opacity: 0.92;
+  opacity: 0.95;
+}
+
+.lyric-cell__low-dots {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: clamp(6px, 1.5vmin, 14px);
+  min-height: clamp(10px, 2vmin, 16px);
+  margin-top: clamp(2px, 0.5vmin, 5px);
+  width: 100%;
+}
+
+.lyric-dot-slot {
+  flex: 1 1 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-width: 0;
+  color: var(--demo-cyan);
+}
+
+.note-glyph__dot--below {
+  margin-top: 0;
 }
 
 .picked__n {
   color: var(--demo-cyan);
   font-weight: 900;
   font-family: "Arial Black", "PingFang SC", sans-serif;
-  line-height: 1.1;
-  font-size: clamp(1.2rem, 4vmin, 1.65rem);
+  line-height: 1.12;
+  font-size: var(--lyric-note-size);
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 1.1em;
+}
+
+.picked__n--sheet .note-glyph__num {
+  font-size: inherit;
+  font-weight: 900;
+  line-height: 1.12;
+  font-variant-numeric: tabular-nums;
+  display: inline-block;
+  text-align: center;
+  min-width: 1ch;
 }
 
 /* 飞入时歌词槽位占位隐藏，避免与飞入层叠重影 */
@@ -317,6 +410,13 @@
   align-items: center;
   line-height: 1;
   gap: 1px;
+}
+
+.note-glyph--low .note-glyph__num {
+  display: inline-block;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  min-width: 1ch;
 }
 
 /* 低音附点：实心圆，随字号略放大 */
@@ -392,6 +492,7 @@
   position: relative;
   z-index: 1;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: clamp(10px, 2vmin, 16px);
   padding: 8px clamp(14px, 3vmin, 22px) clamp(16px, 3vmin, 22px);
@@ -497,4 +598,98 @@
     transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.12);
     opacity: 0;
   }
+}
+
+/* 完整歌谱弹层 */
+.full-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(12px, 3vmin, 24px);
+}
+
+.full-sheet-modal {
+  width: min(100%, min(96vw, 1100px));
+  max-height: min(92vh, 900px);
+  overflow: auto;
+  background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 40%, #f8fafc 100%);
+  border-radius: 16px;
+  border: 4px solid var(--demo-cyan);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.2);
+}
+
+.full-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: clamp(12px, 2vmin, 18px) clamp(16px, 3vmin, 22px);
+  border-bottom: 2px solid rgba(0, 188, 212, 0.35);
+}
+
+.full-sheet-title {
+  margin: 0;
+  font-size: clamp(1.2rem, 3.5vmin, 1.5rem);
+  color: #0d7a8e;
+}
+
+.full-sheet-close {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 2px solid #94a3b8;
+  background: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.full-sheet-body {
+  padding: clamp(12px, 2vmin, 20px) clamp(14px, 2.5vmin, 22px) clamp(20px, 3vmin, 28px);
+}
+
+.full-sheet-page {
+  margin-bottom: clamp(20px, 4vmin, 32px);
+}
+
+.full-sheet-page:last-child {
+  margin-bottom: 0;
+}
+
+.full-sheet-page-title {
+  margin: 0 0 10px;
+  font-size: clamp(1rem, 2.8vmin, 1.2rem);
+  color: #0d7a8e;
+  font-weight: 800;
+}
+
+.full-sheet-lyric-row {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: clamp(2px, 0.6vmin, 8px);
+  flex-wrap: nowrap;
+}
+
+.full-sheet-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.full-sheet-cell--bar {
+  margin-left: clamp(32px, 6vmin, 76px);
+  border-left: 3px solid var(--demo-cyan);
+  padding-left: clamp(8px, 1.6vmin, 16px);
+  box-sizing: border-box;
+}
+
+.full-sheet-cell .lyric-cell__char {
+  font-size: clamp(0.95rem, 2.8vmin, 1.25rem);
 }
