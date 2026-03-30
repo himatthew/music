@@ -1,0 +1,454 @@
+/* 全屏背景：--app-bg 由 App.jsx 注入，兼容 GitHub Pages 子路径 */
+.app {
+  --demo-cyan: #00bcd4;
+  --demo-cyan-deep: #00acc1;
+  --demo-gray: #aaaaaa;
+  --demo-sky: #e1f5fe;
+  --demo-lyric: #111111;
+
+  min-height: 100%;
+  min-height: 100dvh;
+  background-image: var(--app-bg);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(8px, 2vmin, 20px);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+.stage {
+  width: min(100%, min(96vw, 125vh * 1392 / 796));
+  max-width: 1120px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+/* 对齐 imgs1：粗青框、浅蓝→白渐变、底部麦田氛围 */
+.scene-card {
+  position: relative;
+  border-radius: 20px;
+  border: 7px solid var(--demo-cyan);
+  background: linear-gradient(
+    180deg,
+    var(--demo-sky) 0%,
+    #f5fcff 38%,
+    #ffffff 55%,
+    #f5fcff 100%
+  );
+  box-shadow: 0 16px 48px rgba(0, 150, 170, 0.14);
+  overflow: hidden;
+}
+
+.scene-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26%;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(245, 228, 210, 0.28) 35%,
+    rgba(230, 210, 185, 0.42) 100%
+  );
+  border-radius: 0 0 12px 12px;
+}
+
+.scene-card__title {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  padding: clamp(14px, 2.5vmin, 22px) 16px 6px;
+  text-align: center;
+  font-size: clamp(1.85rem, 5.5vmin, 2.5rem);
+  font-weight: 900;
+  font-family: "Arial Black", "PingFang SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: 0.14em;
+  color: var(--demo-cyan);
+}
+
+.scene-card__middle {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 4px clamp(8px, 2vmin, 16px) clamp(10px, 2vmin, 18px);
+  gap: clamp(6px, 1.5vmin, 14px);
+}
+
+/* 中间仅两列均分（与 imgs1 demo 一致），与底部分歌词行分离 */
+.notation-area {
+  position: relative;
+  z-index: 1;
+  min-height: clamp(200px, 36vmin, 340px);
+  padding: clamp(6px, 1.5vmin, 14px) clamp(12px, 3vmin, 28px) 0;
+}
+
+.notation-pair {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: end;
+  justify-items: stretch;
+  gap: clamp(16px, 4vmin, 40px);
+  min-height: clamp(190px, 34vmin, 300px);
+}
+
+.notation-col {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+
+/* 简谱柱：布局仍为「数字 + 右侧虚线」；数字在固定宽区内水平居中，灰/蓝共一条竖直中轴 */
+.notation-col__stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: clamp(4px, 0.8vmin, 8px);
+  width: 100%;
+}
+
+.ladder-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  gap: 0;
+}
+
+.ladder-line__num-wrap {
+  flex: 0 0 clamp(2.5rem, 8.5vmin, 3.75rem);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+}
+
+.ladder-dash {
+  flex: 1 1 auto;
+  min-width: clamp(28px, 5vmin, 48px);
+  height: 0;
+  margin-left: -0.22em;
+  border: none;
+  border-top: 2px dashed rgba(0, 188, 212, 0.55);
+  align-self: center;
+}
+
+.ladder-line--hint .ladder-dash {
+  border-top-color: rgba(170, 170, 170, 0.65);
+  border-top-width: 1.5px;
+}
+
+/* 灰色小号：与 pick 同逻辑可点，仅字号/颜色不同 */
+.ladder__hint-btn {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  min-height: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1.2;
+  color: var(--demo-gray);
+  font-size: clamp(1.05rem, 3.4vmin, 1.45rem);
+  font-weight: 700;
+  font-family: "Arial Black", "PingFang SC", "Microsoft YaHei", sans-serif;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.ladder__hint-btn:active {
+  transform: scale(0.96);
+  color: #909090;
+}
+
+.ladder__pick {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1.1;
+  color: var(--demo-cyan);
+  font-size: clamp(1.75rem, 6vmin, 2.65rem);
+  font-weight: 900;
+  font-family: "Arial Black", "PingFang SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: 0.02em;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.ladder__pick:active {
+  transform: scale(0.96);
+  color: var(--demo-cyan-deep);
+}
+
+/* 底部一行歌词：每字一列，仅展示已选与字符 */
+.lyric-strip {
+  position: relative;
+  z-index: 1;
+  padding: 0 clamp(4px, 1.2vmin, 12px) 2px;
+}
+
+.lyric-row {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: clamp(2px, 0.6vmin, 8px);
+}
+
+.lyric-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  cursor: pointer;
+  border-radius: 10px;
+  outline: none;
+}
+
+.lyric-cell:focus-visible {
+  box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.55);
+}
+
+/* 每句首字（第 5、9… 字）略左移出间距，区分上下两句 */
+.lyric-cell--phrase-start {
+  margin-left: clamp(36px, 6.5vmin, 80px);
+}
+
+.lyric-cell__picked {
+  min-height: clamp(32px, 6vmin, 48px);
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(6px, 1.5vmin, 14px);
+  margin-bottom: clamp(3px, 0.8vmin, 8px);
+}
+
+.picked__n {
+  color: var(--demo-cyan);
+  font-weight: 900;
+  font-family: "Arial Black", "PingFang SC", sans-serif;
+  line-height: 1.1;
+  font-size: clamp(1.2rem, 4vmin, 1.65rem);
+}
+
+/* 飞入时歌词槽位占位隐藏，避免与飞入层叠重影 */
+.picked__n--fly-hidden {
+  visibility: hidden;
+}
+
+.note-glyph {
+  display: inline-block;
+}
+
+.note-glyph--low {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  gap: 1px;
+}
+
+/* 低音附点：实心圆，随字号略放大 */
+.note-glyph__dot {
+  display: block;
+  flex-shrink: 0;
+  width: 0.25em;
+  height: 0.25em;
+  min-width: 3px;
+  min-height: 3px;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: currentColor;
+  box-sizing: border-box;
+}
+
+.lyric-cell__char {
+  font-size: clamp(1rem, 3.2vmin, 1.5rem);
+  font-weight: 600;
+  color: var(--demo-lyric);
+  letter-spacing: 0.06em;
+  padding: clamp(3px, 0.8vmin, 8px) clamp(2px, 0.5vmin, 6px);
+  border-radius: 8px;
+  transition: box-shadow 0.15s, background 0.15s;
+}
+
+.lyric-cell--current .lyric-cell__char {
+  background: rgba(0, 188, 212, 0.18);
+  box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.45);
+}
+
+.scene-nav {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 2vmin, 18px);
+  padding: 6px 12px 4px;
+}
+
+.scene-nav--below {
+  margin-top: clamp(10px, 2vmin, 16px);
+  padding-bottom: 2px;
+}
+
+.scene-nav__label {
+  font-size: clamp(0.85rem, 2.2vmin, 1rem);
+  color: #0d7a8e;
+  font-weight: 700;
+  min-width: 6.5em;
+  text-align: center;
+}
+
+.btn-ghost {
+  min-height: 44px;
+  padding: 0 clamp(14px, 3vmin, 20px);
+  border-radius: 10px;
+  border: 2px solid rgba(0, 188, 212, 0.65);
+  background: rgba(255, 255, 255, 0.95);
+  color: #0d7a8e;
+  font-size: clamp(0.85rem, 2.2vmin, 1rem);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-ghost:active {
+  background: rgba(224, 247, 250, 0.98);
+}
+
+.actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: clamp(10px, 2vmin, 16px);
+  padding: 8px clamp(14px, 3vmin, 22px) clamp(16px, 3vmin, 22px);
+}
+
+.btn-secondary {
+  min-height: 48px;
+  min-width: 96px;
+  padding: 0 clamp(18px, 3.5vmin, 28px);
+  border-radius: 12px;
+  border: 2px solid #94a3b8;
+  background: rgba(255, 255, 255, 0.96);
+  color: #334155;
+  font-size: clamp(1rem, 2.5vmin, 1.12rem);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-primary {
+  min-height: 48px;
+  min-width: 96px;
+  padding: 0 clamp(18px, 3.5vmin, 28px);
+  border-radius: 12px;
+  border: 2px solid var(--demo-cyan);
+  background: linear-gradient(180deg, #26c6da 0%, var(--demo-cyan) 100%);
+  color: #fff;
+  font-size: clamp(1rem, 2.5vmin, 1.12rem);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-primary:active,
+.btn-secondary:active {
+  opacity: 0.92;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%) translateY(16px);
+  padding: 12px 22px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  font-size: 1rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s, transform 0.25s;
+  z-index: 100;
+}
+
+.toast--show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (orientation: portrait) {
+  .notation-area {
+    min-height: clamp(180px, 32vmin, 300px);
+  }
+}
+
+.fly-chip {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.fly-chip__inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.particle-burst {
+  position: fixed;
+  z-index: 999;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.particle-burst__bit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #fff 0%, var(--demo-cyan) 45%, #0097a7 100%);
+  box-shadow: 0 0 2px rgba(0, 188, 212, 0.6);
+  animation: particle-burst-fly 0.48s ease-out forwards;
+}
+
+@keyframes particle-burst-fly {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.12);
+    opacity: 0;
+  }
+}
