@@ -1,6 +1,8 @@
 /* 全屏背景：--app-bg 由 App.jsx 注入，兼容 GitHub Pages 子路径 */
 .app {
   -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   --demo-cyan: #00bcd4;
   --demo-cyan-deep: #00acc1;
   --demo-gray: #aaaaaa;
@@ -99,6 +101,8 @@
   padding: clamp(6px, 1.5vmin, 14px) clamp(12px, 3vmin, 28px) 0;
   /* 避免触摸滑动被当成页面滚动，否则 pointermove 很少触发、划线失败 */
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* 划线手势轨迹：盖在简谱上方，不拦截点击（点击在下方按钮上触发） */
@@ -209,7 +213,7 @@
   font-family: "Arial Black", "PingFang SC", "Microsoft YaHei", sans-serif;
   text-align: center;
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 .ladder__hint-btn:active {
@@ -232,7 +236,7 @@
   letter-spacing: 0.02em;
   text-align: center;
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 .ladder__pick:active {

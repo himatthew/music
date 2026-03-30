@@ -85,11 +85,26 @@ function emptyLineRhythm(len) {
   return Array.from({ length: len }, () => false);
 }
 
-function pickNoteIdFromPoint(clientX, clientY) {
+/** 左右同音高共用 data-note-id，划线需用 data-stroke-key 区分格位 */
+function pickLadderHitFromPoint(clientX, clientY) {
   const els = document.elementsFromPoint(clientX, clientY);
   for (let k = 0; k < els.length; k++) {
-    const line = els[k].closest?.(".ladder-line[data-note-id]");
-    if (line) return line.getAttribute("data-note-id");
+    const line = els[k].closest?.(".ladder-line[data-stroke-key]");
+    if (line) {
+      const strokeKey = line.getAttribute("data-stroke-key");
+      const noteId = line.getAttribute("data-note-id");
+      if (strokeKey && noteId) return { strokeKey, noteId };
+    }
+  }
+  const lines = document.querySelectorAll(".notation-area .ladder-line[data-stroke-key]");
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    const r = line.getBoundingClientRect();
+    if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) {
+      const strokeKey = line.getAttribute("data-stroke-key");
+      const noteId = line.getAttribute("data-note-id");
+      if (strokeKey && noteId) return { strokeKey, noteId };
+    }
   }
   return null;
 }
@@ -217,14 +232,16 @@ function LyricPickedDisplay({ sel, lineRhythm, palette }) {
   );
 }
 
-function LadderRow({ seg, onPick }) {
+function LadderRow({ seg, onPick, side }) {
   const noteId = resolveNoteId(seg);
+  const strokeKey = `${side}-${noteId}`;
   const entry = { id: noteId, t: seg.t, low: !!seg.low };
   const isPick = seg.role === "pick";
   return (
     <div
       className={"ladder-line " + (isPick ? "ladder-line--pick" : "ladder-line--hint")}
       data-note-id={noteId}
+      data-stroke-key={strokeKey}
       onClick={(e) => {
         if (e.target.closest?.("button")) return;
         onPick(noteId, e);
@@ -339,10 +356,10 @@ function NotationPairRows({ left, right, onPick }) {
     return (
       <div key={id} className="notation-pair__row">
         <div className="notation-pair__cell">
-          {leftSeg ? <LadderRow seg={leftSeg} onPick={onPick} /> : <div className="notation-pair__cell--empty" aria-hidden />}
+          {leftSeg ? <LadderRow seg={leftSeg} side="left" onPick={onPick} /> : <div className="notation-pair__cell--empty" aria-hidden />}
         </div>
         <div className="notation-pair__cell">
-          {rightSeg ? <LadderRow seg={rightSeg} onPick={onPick} /> : <div className="notation-pair__cell--empty" aria-hidden />}
+          {rightSeg ? <LadderRow seg={rightSeg} side="right" onPick={onPick} /> : <div className="notation-pair__cell--empty" aria-hidden />}
         </div>
       </div>
     );
@@ -436,7 +453,7 @@ export default function App() {
   );
 
   const applyLineStroke = useCallback(
-    (firstId, lastId, fromClientX, fromClientY) => {
+    (firstId, lastId, fromClientX, fromClientY, lastStrokeKey) => {
       const idx = state.currentIndex;
       const pickedSlotIndex = 1;
       flushSync(() => {
@@ -446,10 +463,15 @@ export default function App() {
           st.lineRhythm[i] = true;
         });
       });
-      const hit = document.elementFromPoint(fromClientX, fromClientY);
-      const line = hit?.closest?.(".ladder-line[data-note-id]");
-      const fromBtn = line?.querySelector?.("button[data-note-id]");
-      const fromRect = fromBtn?.getBoundingClientRect() ?? line?.getBoundingClientRect();
+      const line =
+        lastStrokeKey != null
+          ? document.querySelector(`[data-stroke-key="${CSS.escape(lastStrokeKey)}"]`)
+          : null;
+      const hitLine =
+        line ??
+        document.elementFromPoint(fromClientX, fromClientY)?.closest?.(".ladder-line[data-note-id]");
+      const fromBtn = hitLine?.querySelector?.("button[data-note-id]");
+      const fromRect = fromBtn?.getBoundingClientRect() ?? hitLine?.getBoundingClientRect();
       if (!fromRect) return;
       requestAnimationFrame(() => {
         const wrap = lyricPickedRefs.current[idx];
@@ -543,11 +565,17 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [fullSheetOpen]);
 
-  /** 触控长按/部分浏览器会合成 contextmenu，易误判为「右击」；捕获阶段统一拦截 */
+  /** 触控长按：contextmenu / 文本选中 / 拖拽 在部分系统仍会出菜单或选区 */
   useEffect(() => {
-    const onCtx = (e) => e.preventDefault();
-    document.addEventListener("contextmenu", onCtx, { capture: true });
-    return () => document.removeEventListener("contextmenu", onCtx, { capture: true });
+    const stop = (e) => e.preventDefault();
+    document.addEventListener("contextmenu", stop, { capture: true });
+    document.addEventListener("selectstart", stop, { capture: true });
+    document.addEventListener("dragstart", stop, { capture: true });
+    return () => {
+      document.removeEventListener("contextmenu", stop, { capture: true });
+      document.removeEventListener("selectstart", stop, { capture: true });
+      document.removeEventListener("dragstart", stop, { capture: true });
+    };
   }, []);
 
   /** 不在父级 setPointerCapture，否则按钮收不到 click。划线用 document 捕获阶段跟踪整段手势。 */
@@ -556,7 +584,8 @@ export default function App() {
       const row = e.target.closest?.(".ladder-line[data-note-id]");
       if (!row) return;
       const id = row.getAttribute("data-note-id");
-      if (!id) return;
+      const strokeKey = row.getAttribute("data-stroke-key");
+      if (!id || !strokeKey) return;
       const btn = row.querySelector?.("button[data-note-id]");
       if (!btn) return;
       const pointerId = e.pointerId;
@@ -568,8 +597,9 @@ export default function App() {
           : null;
       strokeRef.current = {
         pointerId,
-        visited: [id],
-        lastId: id,
+        visitedKeys: [strokeKey],
+        lastHitKey: strokeKey,
+        startNoteId: id,
         lastClientX: e.clientX,
         lastClientY: e.clientY,
         startX: e.clientX,
@@ -618,10 +648,10 @@ export default function App() {
             h: ar.height,
           });
         }
-        const nid = pickNoteIdFromPoint(ev.clientX, ev.clientY);
-        if (nid && nid !== s.lastId) {
-          s.visited.push(nid);
-          s.lastId = nid;
+        const hit = pickLadderHitFromPoint(ev.clientX, ev.clientY);
+        if (hit && hit.strokeKey !== s.lastHitKey) {
+          s.visitedKeys.push(hit.strokeKey);
+          s.lastHitKey = hit.strokeKey;
         }
       }
 
@@ -645,22 +675,25 @@ export default function App() {
         const TAP_MOVE = 12;
         const moved = (s.maxDist || 0) > TAP_MOVE;
 
-        if (s.visited.length >= 2) {
+        if (s.visitedKeys.length >= 2) {
           ev.preventDefault();
           ev.stopPropagation();
           suppressClickRef.current = true;
-          applyLineStroke(
-            s.visited[0],
-            s.visited[s.visited.length - 1],
-            s.lastClientX,
-            s.lastClientY
-          );
+          const firstKey = s.visitedKeys[0];
+          const lastKey = s.visitedKeys[s.visitedKeys.length - 1];
+          const firstEl = document.querySelector(`[data-stroke-key="${CSS.escape(firstKey)}"]`);
+          const lastEl = document.querySelector(`[data-stroke-key="${CSS.escape(lastKey)}"]`);
+          const firstId = firstEl?.getAttribute("data-note-id");
+          const lastId = lastEl?.getAttribute("data-note-id");
+          if (firstId && lastId) {
+            applyLineStroke(firstId, lastId, s.lastClientX, s.lastClientY, lastKey);
+          }
           return;
         }
-        if (s.visited.length === 1 && moved) {
+        if (s.visitedKeys.length === 1 && moved) {
           ev.preventDefault();
           ev.stopPropagation();
-          addNote(s.visited[0], { currentTarget: s.startButton });
+          addNote(s.startNoteId, { currentTarget: s.startButton });
           suppressClickRef.current = true;
         }
       }
