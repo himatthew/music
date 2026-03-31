@@ -418,8 +418,9 @@ export default function App() {
   }, [sceneIndex]);
 
   const addNote = useCallback(
-    (id, e) => {
-      if (suppressClickRef.current) {
+    (id, e, opts) => {
+      /* 划横线结束时直接调用 addNote；若触屏未产生合成 click，suppress 不会被清除，下次划线会被误拦 */
+      if (!opts?.fromStroke && suppressClickRef.current) {
         suppressClickRef.current = false;
         return;
       }
@@ -696,7 +697,7 @@ export default function App() {
         if (s.visitedKeys.length === 1 && moved) {
           ev.preventDefault();
           ev.stopPropagation();
-          addNote(s.startNoteId, { currentTarget: s.startButton });
+          addNote(s.startNoteId, { currentTarget: s.startButton }, { fromStroke: true });
           suppressClickRef.current = true;
         }
       }
