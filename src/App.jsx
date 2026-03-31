@@ -419,7 +419,7 @@ export default function App() {
 
   const addNote = useCallback(
     (id, e, opts) => {
-      /* 划横线结束时直接调用 addNote；若触屏未产生合成 click，suppress 不会被清除，下次划线会被误拦 */
+      /* 划线结束直接调 addNote；触屏常无合成 click，suppress 不回落，之后无论换另一音节再横划或同格重划，都会被误拦 */
       if (!opts?.fromStroke && suppressClickRef.current) {
         suppressClickRef.current = false;
         return;
