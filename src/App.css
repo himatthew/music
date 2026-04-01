@@ -118,6 +118,14 @@
   fill: none;
 }
 
+.notation-trail--persisted {
+  opacity: 0.78;
+}
+
+.notation-trail--live {
+  opacity: 1;
+}
+
 /* 多行：每行一条 grid，左右格同一水平线，第 i 行与第 i 行对齐 */
 .notation-pair {
   position: relative;

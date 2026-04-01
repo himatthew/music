@@ -85,6 +85,71 @@ function emptyLineRhythm(len) {
   return Array.from({ length: len }, () => false);
 }
 
+/** 每句两个槽位对应最多两个音上的持久划轨 */
+function emptyNotationTrails(len) {
+  return Array.from({ length: len }, () => [null, null]);
+}
+
+function cloneTrail(t) {
+  if (!t) return null;
+  return { w: t.w, h: t.h, points: t.points.map((p) => ({ x: p.x, y: p.y })) };
+}
+
+function cloneNotationTrailsRow(row) {
+  const a = cloneTrail(row[0]);
+  const b = cloneTrail(row[1]);
+  if (row[0] != null && row[0] === row[1]) {
+    return [a, a];
+  }
+  return [a, b];
+}
+
+function cloneNotationTrails(trails) {
+  return trails.map(cloneNotationTrailsRow);
+}
+
+function trailSnapshotFromStroke(s) {
+  if (!s?.trailPoints?.length) return null;
+  return {
+    w: s.trailW,
+    h: s.trailH,
+    points: s.trailPoints.map((p) => ({ x: p.x, y: p.y })),
+  };
+}
+
+function NotationTrailSvg({ trail, className }) {
+  if (!trail?.points?.length || trail.w <= 0 || trail.h <= 0) return null;
+  return (
+    <svg
+      className={className || "notation-trail"}
+      aria-hidden
+      fill="none"
+      viewBox={"0 0 " + trail.w + " " + trail.h}
+      preserveAspectRatio="none"
+    >
+      {trail.points.length === 1 ? (
+        <circle
+          cx={trail.points[0].x}
+          cy={trail.points[0].y}
+          r="5"
+          fill="var(--demo-cyan)"
+          fillOpacity="0.75"
+        />
+      ) : (
+        <polyline
+          fill="none"
+          stroke="var(--demo-cyan)"
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeOpacity="0.88"
+          points={trail.points.map((p) => p.x + "," + p.y).join(" ")}
+        />
+      )}
+    </svg>
+  );
+}
+
 /** 左右同音高共用 data-note-id，划线需用 data-stroke-key 区分格位 */
 function pickLadderHitFromPoint(clientX, clientY) {
   /* 优先矩形命中：不依赖 elementsFromPoint 穿透轨迹 SVG / 触屏栈不完整，避免选不中 */
@@ -376,6 +441,7 @@ export default function App() {
       currentIndex: 0,
       selections: emptySelections(s.lyrics.length),
       lineRhythm: emptyLineRhythm(s.lyrics.length),
+      notationTrails: emptyNotationTrails(s.lyrics.length),
     }))
   );
   const [toast, setToast] = useState({ show: false, msg: "" });
@@ -408,6 +474,7 @@ export default function App() {
           currentIndex: x.currentIndex,
           selections: x.selections.map((a) => [...a]),
           lineRhythm: [...x.lineRhythm],
+          notationTrails: cloneNotationTrails(x.notationTrails),
         };
       });
       const st = { ...next[sceneIndex] };
@@ -510,20 +577,20 @@ export default function App() {
     [setCurrent, state.currentIndex]
   );
 
+  /** 删除：清空当前歌词格内全部音节与对应划轨 */
   const deleteLast = useCallback(() => {
     const idx = state.currentIndex;
     const arr = state.selections[idx];
     if (arr.length === 0) return;
     window.clearTimeout(deleteTimerRef.current);
     const container = lyricPickedRefs.current[idx];
-    const lastSpan = container?.querySelector(".picked__n:last-child");
-    const rect = lastSpan?.getBoundingClientRect();
+    const rect = container?.getBoundingClientRect();
     flushSync(() => {
       setCurrent((st) => {
         const i = st.currentIndex;
-        const a = st.selections[i];
-        if (a.length) a.pop();
-        if (a.length < 2) st.lineRhythm[i] = false;
+        st.selections[i] = [];
+        st.lineRhythm[i] = false;
+        st.notationTrails[i] = [null, null];
       });
     });
     if (rect && rect.width >= 1 && rect.height >= 1) {
@@ -691,14 +758,36 @@ export default function App() {
           const lastId = lastEl?.getAttribute("data-note-id");
           if (firstId && lastId) {
             applyLineStroke(firstId, lastId, s.lastClientX, s.lastClientY, lastKey);
+            const tr = trailSnapshotFromStroke(s);
+            if (tr?.points?.length) {
+              flushSync(() => {
+                setCurrent((st) => {
+                  const i = st.currentIndex;
+                  st.notationTrails[i][0] = tr;
+                  st.notationTrails[i][1] = tr;
+                });
+              });
+            }
           }
           return;
         }
         if (s.visitedKeys.length === 1 && moved) {
           ev.preventDefault();
           ev.stopPropagation();
+          const idx = state.currentIndex;
+          const slotBefore = state.selections[idx].length;
           addNote(s.startNoteId, { currentTarget: s.startButton }, { fromStroke: true });
           suppressClickRef.current = true;
+          if (slotBefore < 2) {
+            const tr = trailSnapshotFromStroke(s);
+            if (tr?.points?.length) {
+              flushSync(() => {
+                setCurrent((st) => {
+                  st.notationTrails[st.currentIndex][slotBefore] = tr;
+                });
+              });
+            }
+          }
         }
       }
 
@@ -712,7 +801,7 @@ export default function App() {
       document.addEventListener("pointerup", onDocUp, docOpts);
       document.addEventListener("pointercancel", onDocCancel, docOpts);
     },
-    [applyLineStroke, addNote]
+    [applyLineStroke, addNote, setCurrent, state.currentIndex, state.selections]
   );
 
   const palette = useMemo(() => scene.palette, [scene]);
@@ -723,6 +812,20 @@ export default function App() {
     () => states.every((st, idx) => isPageComplete(st, SCENES[idx].lyrics.length)),
     [states]
   );
+
+  const persistedTrailsDeduped = useMemo(() => {
+    const seen = new Set();
+    const list = [];
+    for (const row of state.notationTrails) {
+      for (const t of row) {
+        if (t && !seen.has(t)) {
+          seen.add(t);
+          list.push(t);
+        }
+      }
+    }
+    return list;
+  }, [state.notationTrails]);
 
   return (
     <div
@@ -737,38 +840,16 @@ export default function App() {
 
           <div className="scene-card__middle">
             <div ref={notationAreaRef} className="notation-area" onPointerDown={onNotationPointerDown}>
-              {strokeTrail &&
-                strokeTrail.points.length > 0 &&
-                strokeTrail.w > 0 &&
-                strokeTrail.h > 0 && (
-                  <svg
-                    className="notation-trail"
-                    aria-hidden
-                    fill="none"
-                    viewBox={"0 0 " + strokeTrail.w + " " + strokeTrail.h}
-                    preserveAspectRatio="none"
-                  >
-                    {strokeTrail.points.length === 1 ? (
-                      <circle
-                        cx={strokeTrail.points[0].x}
-                        cy={strokeTrail.points[0].y}
-                        r="5"
-                        fill="var(--demo-cyan)"
-                        fillOpacity="0.75"
-                      />
-                    ) : (
-                      <polyline
-                        fill="none"
-                        stroke="var(--demo-cyan)"
-                        strokeWidth="6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeOpacity="0.88"
-                        points={strokeTrail.points.map((p) => p.x + "," + p.y).join(" ")}
-                      />
-                    )}
-                  </svg>
-                )}
+              {persistedTrailsDeduped.map((tr, i) => (
+                <NotationTrailSvg
+                  key={"pt-" + i + "-" + tr.w + "-" + tr.h + "-" + tr.points.length + "-" + (tr.points[0]?.x ?? 0)}
+                  trail={tr}
+                  className="notation-trail notation-trail--persisted"
+                />
+              ))}
+              {strokeTrail && (
+                <NotationTrailSvg trail={strokeTrail} className="notation-trail notation-trail--live" />
+              )}
               <div className="notation-pair" aria-label="简谱两列">
                 <NotationPairRows left={ladderLeft} right={ladderRight} onPick={addNote} />
               </div>
