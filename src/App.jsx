@@ -1,5 +1,12 @@
 import { flushSync } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  beginPagePlayback,
+  playAllPagesMelody,
+  playPageMelody,
+  playSelectionPreview,
+  stopAllPlayback,
+} from "./audioPlayback.js";
 import "./App.css";
 
 /**
@@ -9,7 +16,7 @@ import "./App.css";
 /** 每句字数，用于歌词行两句之间的视觉分隔 */
 const LYRIC_CHARS_PER_PHRASE = 4;
 
-/** 第一页 = 清晨阳光洒在田野，第二页 = 微风轻拂叶尖摇（与原顺序对调） */
+/** 第一页 = 清晨阳光洒在田野，第二页 = 微风轻拂叶尖摇；第三 / 四页纵轴分别同第一 / 二页 */
 const SCENES = [
   {
     id: "s2",
@@ -46,6 +53,70 @@ const SCENES = [
   {
     id: "s1",
     lyrics: ["微", "风", "轻", "拂", "叶", "尖", "摇"],
+    palette: [
+      { id: "1", t: "1" },
+      { id: "2", t: "2" },
+      { id: "3", t: "3" },
+      { id: "4", t: "4" },
+      { id: "5", t: "5" },
+      { id: "6", t: "6" },
+      { id: "7", t: "7" },
+      { id: "L7", t: "7", low: true },
+      { id: "L6", t: "6", low: true },
+    ],
+    pairLadders: {
+      left: [
+        { role: "pick", id: "3", t: "3" },
+        { role: "hint", id: "2", t: "2" },
+        { role: "pick", id: "1", t: "1" },
+        { role: "hint", id: "L7", t: "7", low: true },
+        { role: "pick", id: "L6", t: "6", low: true },
+      ],
+      right: [
+        { role: "pick", id: "4", t: "4" },
+        { role: "hint", id: "3", t: "3" },
+        { role: "hint", id: "2", t: "2" },
+        { role: "pick", id: "1", t: "1" },
+        { role: "hint", id: "L7", t: "7", low: true },
+        { role: "pick", id: "L6", t: "6", low: true },
+      ],
+    },
+  },
+  {
+    id: "s3",
+    lyrics: ["师", "生", "家", "长", "齐", "心", "协", "力"],
+    palette: [
+      { id: "1", t: "1" },
+      { id: "2", t: "2" },
+      { id: "3", t: "3" },
+      { id: "4", t: "4" },
+      { id: "5", t: "5" },
+      { id: "6", t: "6" },
+      { id: "7", t: "7" },
+      { id: "L7", t: "7", low: true },
+      { id: "L6", t: "6", low: true },
+    ],
+    pairLadders: {
+      left: [
+        { role: "pick", id: "5", t: "5" },
+        { role: "hint", id: "4", t: "4" },
+        { role: "pick", id: "3", t: "3" },
+        { role: "hint", id: "2", t: "2" },
+        { role: "pick", id: "1", t: "1" },
+      ],
+      right: [
+        { role: "pick", id: "5", t: "5" },
+        { role: "hint", id: "4", t: "4" },
+        { role: "hint", id: "3", t: "3" },
+        { role: "pick", id: "2", t: "2" },
+        { role: "hint", id: "1", t: "1" },
+        { role: "pick", id: "L7", t: "7", low: true },
+      ],
+    },
+  },
+  {
+    id: "s4",
+    lyrics: ["和", "睦", "故", "事", "慢", "慢", "跑"],
     palette: [
       { id: "1", t: "1" },
       { id: "2", t: "2" },
@@ -456,9 +527,23 @@ export default function App() {
   /** 简谱区划线轨迹（相对 notation-area 的局部坐标） */
   const [strokeTrail, setStrokeTrail] = useState(null);
   const [fullSheetOpen, setFullSheetOpen] = useState(false);
+  /** 总谱弹窗：试听全曲（串播各页） */
+  const [allMelodyPlaying, setAllMelodyPlaying] = useState(false);
+  /** 总谱弹窗：试听本页（某一页 index） */
+  const [fullSheetPlayingPage, setFullSheetPlayingPage] = useState(null);
+  /** 主界面底部：当前页「试听本页」播放中 */
+  const [pagePreviewPlaying, setPagePreviewPlaying] = useState(false);
 
   const scene = SCENES[sceneIndex];
   const state = states[sceneIndex];
+
+  const pageComplete = useMemo(
+    () => isPageComplete(state, scene.lyrics.length),
+    [state, scene.lyrics.length]
+  );
+
+  const audioPlaybackBusy =
+    pagePreviewPlaying || allMelodyPlaying || fullSheetPlayingPage !== null;
 
   const showToast = useCallback((msg) => {
     setToast({ show: true, msg });
@@ -493,7 +578,8 @@ export default function App() {
       }
       const idx = state.currentIndex;
       if (state.selections[idx].length >= 2) return;
-      const pickedSlotIndex = state.selections[idx].length;
+      const beforeSel = [...state.selections[idx]];
+      const pickedSlotIndex = beforeSel.length;
       const fromRect = e?.currentTarget?.getBoundingClientRect?.();
       flushSync(() => {
         setCurrent((st) => {
@@ -504,6 +590,13 @@ export default function App() {
           st.lineRhythm[i] = false;
         });
       });
+      /* 点击与划线统一在提交状态后试听，避免 flushSync 与 Audio.play 抢同一同步栈 */
+      if (!opts?.skipPreview) {
+        const sel = [...beforeSel, id];
+        queueMicrotask(() => {
+          void playSelectionPreview(sel);
+        });
+      }
       if (!fromRect) return;
       requestAnimationFrame(() => {
         const wrap = lyricPickedRefs.current[idx];
@@ -524,7 +617,7 @@ export default function App() {
   );
 
   const applyLineStroke = useCallback(
-    (firstId, lastId, fromClientX, fromClientY, lastStrokeKey) => {
+    (firstId, lastId, fromClientX, fromClientY, lastStrokeKey, opts) => {
       const idx = state.currentIndex;
       const pickedSlotIndex = 1;
       flushSync(() => {
@@ -534,6 +627,11 @@ export default function App() {
           st.lineRhythm[i] = true;
         });
       });
+      if (!opts?.skipPreview) {
+        queueMicrotask(() => {
+          void playSelectionPreview([firstId, lastId]);
+        });
+      }
       const line =
         lastStrokeKey != null
           ? document.querySelector(`[data-stroke-key="${CSS.escape(lastStrokeKey)}"]`)
@@ -582,6 +680,10 @@ export default function App() {
     const idx = state.currentIndex;
     const arr = state.selections[idx];
     if (arr.length === 0) return;
+    stopAllPlayback();
+    setAllMelodyPlaying(false);
+    setFullSheetPlayingPage(null);
+    setPagePreviewPlaying(false);
     window.clearTimeout(deleteTimerRef.current);
     const container = lyricPickedRefs.current[idx];
     const rect = container?.getBoundingClientRect();
@@ -625,16 +727,69 @@ export default function App() {
   useEffect(() => {
     setFlyChip(null);
     setParticleBurst(null);
+    stopAllPlayback();
+    setPagePreviewPlaying(false);
+    setAllMelodyPlaying(false);
+    setFullSheetPlayingPage(null);
   }, [sceneIndex]);
+
+  const pagesSelectionsAll = useMemo(
+    () => states.map((st) => st.selections.map((row) => [...row])),
+    [states]
+  );
+
+  const playCurrentPageMelody = useCallback(async () => {
+    if (audioPlaybackBusy) return;
+    const token = beginPagePlayback();
+    setPagePreviewPlaying(true);
+    try {
+      await playPageMelody(state.selections, token);
+    } finally {
+      setPagePreviewPlaying(false);
+    }
+  }, [state.selections, audioPlaybackBusy]);
+
+  const playAllMelody = useCallback(async () => {
+    if (audioPlaybackBusy) return;
+    const token = beginPagePlayback();
+    setAllMelodyPlaying(true);
+    try {
+      await playAllPagesMelody(pagesSelectionsAll, token);
+    } finally {
+      setAllMelodyPlaying(false);
+    }
+  }, [pagesSelectionsAll, audioPlaybackBusy]);
+
+  const playFullSheetPageAt = useCallback(
+    async (pi) => {
+      if (audioPlaybackBusy) return;
+      const token = beginPagePlayback();
+      setFullSheetPlayingPage(pi);
+      try {
+        await playPageMelody(states[pi].selections, token);
+      } finally {
+        setFullSheetPlayingPage(null);
+      }
+    },
+    [states, audioPlaybackBusy]
+  );
+
+  const closeFullSheet = useCallback(() => {
+    stopAllPlayback();
+    setAllMelodyPlaying(false);
+    setFullSheetPlayingPage(null);
+    setPagePreviewPlaying(false);
+    setFullSheetOpen(false);
+  }, []);
 
   useEffect(() => {
     if (!fullSheetOpen) return;
     const onKey = (e) => {
-      if (e.key === "Escape") setFullSheetOpen(false);
+      if (e.key === "Escape") closeFullSheet();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [fullSheetOpen]);
+  }, [fullSheetOpen, closeFullSheet]);
 
   /** 触控长按：contextmenu / 文本选中 / 拖拽 在部分系统仍会出菜单或选区 */
   useEffect(() => {
@@ -757,7 +912,9 @@ export default function App() {
           const firstId = firstEl?.getAttribute("data-note-id");
           const lastId = lastEl?.getAttribute("data-note-id");
           if (firstId && lastId) {
-            applyLineStroke(firstId, lastId, s.lastClientX, s.lastClientY, lastKey);
+            applyLineStroke(firstId, lastId, s.lastClientX, s.lastClientY, lastKey, {
+              skipPreview: true,
+            });
             const tr = trailSnapshotFromStroke(s);
             if (tr?.points?.length) {
               flushSync(() => {
@@ -768,6 +925,9 @@ export default function App() {
                 });
               });
             }
+            queueMicrotask(() => {
+              void playSelectionPreview([firstId, lastId]);
+            });
           }
           return;
         }
@@ -776,7 +936,11 @@ export default function App() {
           ev.stopPropagation();
           const idx = state.currentIndex;
           const slotBefore = state.selections[idx].length;
-          addNote(s.startNoteId, { currentTarget: s.startButton }, { fromStroke: true });
+          const beforeSel = [...state.selections[idx]];
+          addNote(s.startNoteId, { currentTarget: s.startButton }, {
+            fromStroke: true,
+            skipPreview: true,
+          });
           suppressClickRef.current = true;
           if (slotBefore < 2) {
             const tr = trailSnapshotFromStroke(s);
@@ -787,6 +951,9 @@ export default function App() {
                 });
               });
             }
+            queueMicrotask(() => {
+              void playSelectionPreview([...beforeSel, s.startNoteId]);
+            });
           }
         }
       }
@@ -1014,6 +1181,16 @@ export default function App() {
                 生成总谱
               </button>
             )}
+            {pageComplete && (
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={audioPlaybackBusy}
+                onClick={() => void playCurrentPageMelody()}
+              >
+                {pagePreviewPlaying ? "播放中…" : "试听本页"}
+              </button>
+            )}
             <button type="button" className="btn-secondary" onClick={deleteLast}>
               删除
             </button>
@@ -1040,7 +1217,7 @@ export default function App() {
         <div
           className="full-sheet-overlay"
           role="presentation"
-          onClick={() => setFullSheetOpen(false)}
+          onClick={closeFullSheet}
         >
           <div
             className="full-sheet-modal"
@@ -1051,16 +1228,41 @@ export default function App() {
           >
             <div className="full-sheet-head">
               <h2 className="full-sheet-title">完整歌谱</h2>
-              <button type="button" className="full-sheet-close" onClick={() => setFullSheetOpen(false)}>
-                关闭
-              </button>
+              <div className="full-sheet-head-actions">
+                {allPagesComplete && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={audioPlaybackBusy}
+                    onClick={() => void playAllMelody()}
+                  >
+                    {allMelodyPlaying ? "播放中…" : "试听全曲"}
+                  </button>
+                )}
+                <button type="button" className="full-sheet-close" onClick={closeFullSheet}>
+                  关闭
+                </button>
+              </div>
             </div>
             <div className="full-sheet-body">
               {SCENES.map((pg, pi) => {
                 const st = states[pi];
+                const sheetPageDone = isPageComplete(st, pg.lyrics.length);
                 return (
                   <section key={pg.id} className="full-sheet-page">
-                    <h3 className="full-sheet-page-title">第 {pi + 1} 页</h3>
+                    <div className="full-sheet-page-head">
+                      <h3 className="full-sheet-page-title">第 {pi + 1} 页</h3>
+                      {sheetPageDone && (
+                        <button
+                          type="button"
+                          className="btn-secondary full-sheet-play-btn"
+                          disabled={audioPlaybackBusy}
+                          onClick={() => void playFullSheetPageAt(pi)}
+                        >
+                          {fullSheetPlayingPage === pi ? "播放中…" : "试听本页"}
+                        </button>
+                      )}
+                    </div>
                     <div className="full-sheet-lyric-row">
                       {pg.lyrics.map((ch, i) => {
                         const sel = st.selections[i];

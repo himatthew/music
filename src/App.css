@@ -705,8 +705,17 @@
 
 .full-sheet-title {
   margin: 0;
+  flex: 1;
+  min-width: 0;
   font-size: clamp(1.2rem, 3.5vmin, 1.5rem);
   color: #0d7a8e;
+}
+
+.full-sheet-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .full-sheet-close {
@@ -729,6 +738,25 @@
 
 .full-sheet-page:last-child {
   margin-bottom: 0;
+}
+
+.full-sheet-page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.full-sheet-page-head .full-sheet-page-title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.full-sheet-play-btn {
+  flex-shrink: 0;
 }
 
 .full-sheet-page-title {
