@@ -739,6 +739,11 @@ export default function App() {
   );
 
   const playCurrentPageMelody = useCallback(async () => {
+    if (pagePreviewPlaying) {
+      stopAllPlayback();
+      setPagePreviewPlaying(false);
+      return;
+    }
     if (audioPlaybackBusy) return;
     const token = beginPagePlayback();
     setPagePreviewPlaying(true);
@@ -747,9 +752,14 @@ export default function App() {
     } finally {
       setPagePreviewPlaying(false);
     }
-  }, [state.selections, audioPlaybackBusy]);
+  }, [state.selections, audioPlaybackBusy, pagePreviewPlaying]);
 
   const playAllMelody = useCallback(async () => {
+    if (allMelodyPlaying) {
+      stopAllPlayback();
+      setAllMelodyPlaying(false);
+      return;
+    }
     if (audioPlaybackBusy) return;
     const token = beginPagePlayback();
     setAllMelodyPlaying(true);
@@ -758,10 +768,15 @@ export default function App() {
     } finally {
       setAllMelodyPlaying(false);
     }
-  }, [pagesSelectionsAll, audioPlaybackBusy]);
+  }, [pagesSelectionsAll, audioPlaybackBusy, allMelodyPlaying]);
 
   const playFullSheetPageAt = useCallback(
     async (pi) => {
+      if (fullSheetPlayingPage === pi) {
+        stopAllPlayback();
+        setFullSheetPlayingPage(null);
+        return;
+      }
       if (audioPlaybackBusy) return;
       const token = beginPagePlayback();
       setFullSheetPlayingPage(pi);
@@ -771,7 +786,7 @@ export default function App() {
         setFullSheetPlayingPage(null);
       }
     },
-    [states, audioPlaybackBusy]
+    [states, audioPlaybackBusy, fullSheetPlayingPage]
   );
 
   const closeFullSheet = useCallback(() => {
@@ -1185,7 +1200,7 @@ export default function App() {
               <button
                 type="button"
                 className="btn-secondary"
-                disabled={audioPlaybackBusy}
+                disabled={audioPlaybackBusy && !pagePreviewPlaying}
                 onClick={() => void playCurrentPageMelody()}
               >
                 {pagePreviewPlaying ? "播放中…" : "试听本页"}
@@ -1233,7 +1248,7 @@ export default function App() {
                   <button
                     type="button"
                     className="btn-secondary"
-                    disabled={audioPlaybackBusy}
+                    disabled={audioPlaybackBusy && !allMelodyPlaying}
                     onClick={() => void playAllMelody()}
                   >
                     {allMelodyPlaying ? "播放中…" : "试听全曲"}
@@ -1256,7 +1271,7 @@ export default function App() {
                         <button
                           type="button"
                           className="btn-secondary full-sheet-play-btn"
-                          disabled={audioPlaybackBusy}
+                          disabled={audioPlaybackBusy && fullSheetPlayingPage !== pi}
                           onClick={() => void playFullSheetPageAt(pi)}
                         >
                           {fullSheetPlayingPage === pi ? "播放中…" : "试听本页"}
