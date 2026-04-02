@@ -1284,7 +1284,7 @@ export default function App() {
                           </div>
                         );
                       })}
-                      {pi === 1 ? (
+                      {pi === SCENES.length - 1 ? (
                         <div className="full-sheet-cell full-sheet-cell--tail-zero" aria-hidden>
                           <div className="lyric-cell__picked-wrap">
                             <span className="full-sheet-trailing-zero">0</span>
