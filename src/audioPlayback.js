@@ -1,11 +1,28 @@
 /**
  * 简谱 id 与 public/audio 下文件对应：长音3.mp3、短音3.mp3（无空格）
  * 带低音点的 L6/L7 与素材「6」「7」对应，文件名用数字 6、7
+ *
+ * 串接试听使用 Tone.js：淡入淡出 + 微小时间/音量随机 + 字间随机间隔，减轻机械感。
  */
 
-let lastPreviewAudio = null;
-let currentPageAudio = null;
+import * as Tone from "tone";
+
 let pagePlayToken = 0;
+let previewToken = 0;
+
+/** @type {Set<Tone.Player>} */
+const activePlayers = new Set();
+
+const HUMAN = {
+  fadeIn: 0.028,
+  fadeOut: 0.036,
+  gapNormalMin: 10,
+  gapNormalMax: 32,
+  gapTightMin: 4,
+  gapTightMax: 14,
+  volumeJitterDb: 1.4,
+  timingJitterSec: 0.01,
+};
 
 function baseUrl() {
   const b = import.meta.env.BASE_URL || "/";
@@ -25,48 +42,106 @@ export function audioUrlForNote(noteId, variant) {
   return baseUrl() + "audio/" + encodeURIComponent(prefix + key) + ".mp3";
 }
 
-function playUrl(url) {
+let toneStarted = false;
+
+async function ensureToneStarted() {
+  if (!toneStarted) {
+    await Tone.start();
+    toneStarted = true;
+  }
+}
+
+function disposeAllTonePlayers() {
+  for (const p of activePlayers) {
+    try {
+      p.stop();
+      p.dispose();
+    } catch (_) {}
+  }
+  activePlayers.clear();
+}
+
+/**
+ * @param {"none" | "normal" | "tight"} gapKind
+ */
+async function sleepGapKind(gapKind, isCancelled) {
+  let ms = 0;
+  if (gapKind === "normal") {
+    ms = HUMAN.gapNormalMin + Math.random() * (HUMAN.gapNormalMax - HUMAN.gapNormalMin);
+  } else if (gapKind === "tight") {
+    ms = HUMAN.gapTightMin + Math.random() * (HUMAN.gapTightMax - HUMAN.gapTightMin);
+  }
+  if (ms <= 0) return !isCancelled();
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (isCancelled()) return false;
+    await new Promise((r) => setTimeout(r, Math.min(24, end - Date.now())));
+  }
+  return !isCancelled();
+}
+
+/**
+ * @param {() => boolean} isCancelled 返回 true 表示应中止
+ */
+async function playUrlWithTone(url, isCancelled) {
+  if (isCancelled()) return;
+  await ensureToneStarted();
+  if (isCancelled()) return;
+
+  const buffer = await Tone.ToneAudioBuffer.fromUrl(url);
+  if (isCancelled()) return;
+
   return new Promise((resolve) => {
-    if (currentPageAudio) {
+    const vol = new Tone.Volume().toDestination();
+    const player = new Tone.Player(buffer).connect(vol);
+    player.fadeIn = HUMAN.fadeIn;
+    player.fadeOut = HUMAN.fadeOut;
+    vol.volume.value = (Math.random() * 2 - 1) * HUMAN.volumeJitterDb;
+
+    const jitter = (Math.random() * 2 - 1) * HUMAN.timingJitterSec;
+    const startAt = Tone.now() + 0.018 + jitter;
+
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      activePlayers.delete(player);
       try {
-        currentPageAudio.pause();
+        player.dispose();
       } catch (_) {}
-    }
-    const a = new Audio(url);
-    currentPageAudio = a;
-    a.onended = () => {
-      if (currentPageAudio === a) currentPageAudio = null;
+      try {
+        vol.dispose();
+      } catch (_) {}
       resolve();
     };
-    a.onerror = () => {
-      console.warn("[audio] missing or failed:", url);
-      if (currentPageAudio === a) currentPageAudio = null;
-      resolve();
-    };
-    a.play().catch(() => {
-      if (currentPageAudio === a) currentPageAudio = null;
-      resolve();
-    });
+
+    player.onstop = finish;
+
+    activePlayers.add(player);
+    player.start(startAt);
+
+    const dur = buffer.duration;
+    window.setTimeout(() => {
+      if (!done) finish();
+    }, (dur + 0.2) * 1000);
   });
 }
 
+async function playPageNote(url, token, gapKind) {
+  const cancelled = () => token !== pagePlayToken;
+  const ok = await sleepGapKind(gapKind, cancelled);
+  if (!ok) return;
+  await playUrlWithTone(url, cancelled);
+}
+
 export function stopPreviewPlayback() {
-  if (lastPreviewAudio) {
-    try {
-      lastPreviewAudio.pause();
-    } catch (_) {}
-    lastPreviewAudio = null;
-  }
+  previewToken += 1;
+  disposeAllTonePlayers();
 }
 
 /** 中止整页串行播放（不切 token 时无法打断链式 Promise） */
 export function cancelPageMelody() {
-  if (currentPageAudio) {
-    try {
-      currentPageAudio.pause();
-    } catch (_) {}
-    currentPageAudio = null;
-  }
+  disposeAllTonePlayers();
   pagePlayToken += 1;
 }
 
@@ -77,46 +152,30 @@ export async function playSelectionPreview(noteIds) {
   if (!noteIds?.length) return;
   cancelPageMelody();
   stopPreviewPlayback();
+  const my = previewToken;
+
+  const cancelled = () => my !== previewToken;
+
+  await ensureToneStarted();
+  if (cancelled()) return;
+
   if (noteIds.length === 1) {
-    const a = new Audio(audioUrlForNote(noteIds[0], "long"));
-    lastPreviewAudio = a;
-    await new Promise((resolve) => {
-      a.onended = () => resolve();
-      a.onerror = () => {
-        console.warn("[audio] missing or failed:", audioUrlForNote(noteIds[0], "long"));
-        resolve();
-      };
-      a.play().catch(() => resolve());
-    });
-    lastPreviewAudio = null;
+    await playUrlWithTone(audioUrlForNote(noteIds[0], "long"), cancelled);
     return;
   }
-  for (let i = 0; i < noteIds.length; i++) {
-    const a = new Audio(audioUrlForNote(noteIds[i], "short"));
-    lastPreviewAudio = a;
-    await new Promise((resolve) => {
-      a.onended = () => resolve();
-      a.onerror = () => {
-        console.warn("[audio] missing or failed:", audioUrlForNote(noteIds[i], "short"));
-        resolve();
-      };
-      a.play().catch(() => resolve());
-    });
-  }
-  lastPreviewAudio = null;
+  await playUrlWithTone(audioUrlForNote(noteIds[0], "short"), cancelled);
+  if (cancelled()) return;
+  const ok = await sleepGapKind("tight", cancelled);
+  if (!ok) return;
+  await playUrlWithTone(audioUrlForNote(noteIds[1], "short"), cancelled);
 }
 
 /**
  * 开始一段新的整页试听，返回本次 token；并中止上一段整页播放与单字试听。
  */
 export function beginPagePlayback() {
-  stopPreviewPlayback();
-  if (currentPageAudio) {
-    try {
-      currentPageAudio.pause();
-    } catch (_) {}
-    currentPageAudio = null;
-  }
+  previewToken += 1;
+  disposeAllTonePlayers();
   pagePlayToken += 1;
   return pagePlayToken;
 }
@@ -125,17 +184,20 @@ export function beginPagePlayback() {
  * 整页串行试听；若 token 与 beginPagePlayback 时不一致则中止。
  */
 export async function playPageMelody(selections, token) {
+  let firstInPage = true;
   for (let i = 0; i < selections.length; i++) {
     if (token !== pagePlayToken) return;
     const sel = selections[i];
     if (!sel?.length) continue;
     if (sel.length === 1) {
-      await playUrl(audioUrlForNote(sel[0], "long"));
+      await playPageNote(audioUrlForNote(sel[0], "long"), token, firstInPage ? "none" : "normal");
+      firstInPage = false;
     } else {
       if (token !== pagePlayToken) return;
-      await playUrl(audioUrlForNote(sel[0], "short"));
+      await playPageNote(audioUrlForNote(sel[0], "short"), token, firstInPage ? "none" : "normal");
+      firstInPage = false;
       if (token !== pagePlayToken) return;
-      await playUrl(audioUrlForNote(sel[1], "short"));
+      await playPageNote(audioUrlForNote(sel[1], "short"), token, "tight");
     }
   }
 }
@@ -153,12 +215,7 @@ export async function playAllPagesMelody(pagesSelections, token) {
 
 /** 切页等场景：停掉所有声音并作废整页 token */
 export function stopAllPlayback() {
-  stopPreviewPlayback();
-  if (currentPageAudio) {
-    try {
-      currentPageAudio.pause();
-    } catch (_) {}
-    currentPageAudio = null;
-  }
+  previewToken += 1;
+  disposeAllTonePlayers();
   pagePlayToken += 1;
 }
