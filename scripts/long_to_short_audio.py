@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 从「长音{n}.mp3」生成与参考短音同长度的「短音{n}.mp3」：
-  1) 对整段长音做结尾 10ms 淡出（fadeout）
-  2) 再截断到参考短音的时长（默认与 短音6.mp3 一致）
+  1) 先截断到参考短音的时长（与 短音6.mp3 等长）
+  2) 再对「截好的片段」末尾做淡出——若先对整段长音 fade 再截前面几秒，
+     淡出落在长音频尾部，截断点仍是硬切，易产生尾噪/咔哒声。
 
 依赖：Python 3、pydub，且系统 PATH 中需有 ffmpeg/ffprobe（brew install ffmpeg）。
 
@@ -30,7 +31,7 @@ def parse_numbers(s: str) -> list[int]:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="长音 → 短音（淡出 + 按参考时长截断）")
+    ap = argparse.ArgumentParser(description="长音 → 短音（先截断到参考时长，再对输出尾淡出）")
     ap.add_argument(
         "--dir",
         type=Path,
@@ -69,12 +70,17 @@ def main() -> int:
             print(f"跳过（不存在）: {src}")
             continue
         audio = AudioSegment.from_file(src, format="mp3")
-        if fade_ms > 0:
-            audio = audio.fade_out(fade_ms)
         truncated = audio[:target_ms]
+        fade_applied = 0
+        if fade_ms > 0 and len(truncated) > 0:
+            fade_applied = min(fade_ms, len(truncated))
+            truncated = truncated.fade_out(fade_applied)
         dst = d / f"短音{n}.mp3"
         truncated.export(dst, format="mp3")
-        print(f"已写入 {dst.name}  长度 {len(truncated)} ms（源 {len(audio)} ms 淡出后截断）")
+        print(
+            f"已写入 {dst.name}  长度 {len(truncated)} ms"
+            f"（源 {len(audio)} ms → 截至 {target_ms} ms，末尾淡出 {fade_applied} ms）"
+        )
 
     return 0
 
