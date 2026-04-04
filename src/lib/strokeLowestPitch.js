@@ -63,7 +63,7 @@ export function strokeLowestPitchNoteId(noteIds) {
 
 /**
  * clientY：屏幕坐标，越小越靠上（波峰），越大越靠下（波谷）。
- * - 仅波峰显著 → 取波峰处音节；仅波谷显著 → 取波谷处音节；
+ * - 仅波峰显著 → 调用方用路径两端音节组成双音；仅波谷显著 → 取波谷处单音；
  * - 波峰与波谷同时显著（不规则路径）→ 统一取波谷音节；
  * - 否则回退为 strokeLowestPitchNoteId。
  */

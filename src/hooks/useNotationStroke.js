@@ -133,10 +133,34 @@ export function useNotationStroke({
             hasRevisitedNoteAfterOther(noteIds) && !allSameNoteId(noteIds);
 
           if (useLowestPitch) {
-            const { noteId: chosenId, pickIndex } = pickPeakValleyOrFallbackNoteId(
-              noteIds,
-              s.visitClientYs
-            );
+            const pv = pickPeakValleyOrFallbackNoteId(noteIds, s.visitClientYs);
+            if (pv.mode === "peak") {
+              const firstKey = keys[0];
+              const lastKey = keys[keys.length - 1];
+              const firstId = noteIdForStrokeKey(firstKey);
+              const lastId = noteIdForStrokeKey(lastKey);
+              if (firstId && lastId) {
+                applyLineStroke(firstId, lastId, s.lastClientX, s.lastClientY, lastKey, {
+                  skipPreview: true,
+                });
+                const tr = trailSnapshotFromStroke(s);
+                if (tr?.points?.length) {
+                  flushSync(() => {
+                    setCurrent((st) => {
+                      const i = st.currentIndex;
+                      st.notationTrails[i][0] = tr;
+                      st.notationTrails[i][1] = tr;
+                    });
+                  });
+                }
+                queueMicrotask(() => {
+                  void playSelectionPreview([firstId, lastId]);
+                });
+              }
+              return;
+            }
+            const chosenId = pv.noteId;
+            const pickIndex = pv.pickIndex;
             const btn = buttonForStrokeIndex(keys, pickIndex) ?? s.startButton;
             addNote(chosenId, { currentTarget: btn }, {
               fromStroke: true,
