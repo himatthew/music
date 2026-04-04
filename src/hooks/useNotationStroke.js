@@ -3,6 +3,13 @@ import { useCallback, useRef } from "react";
 import { playSelectionPreview } from "../audioPlayback.js";
 import { pickLadderHitFromPoint } from "../lib/pickLadderHit.js";
 import { trailSnapshotFromStroke } from "../lib/notationState.js";
+import {
+  allSameNoteId,
+  buttonForStrokeIndex,
+  hasRevisitedNoteAfterOther,
+  noteIdForStrokeKey,
+  pickPeakValleyOrFallbackNoteId,
+} from "../lib/strokeLowestPitch.js";
 
 /**
  * 简谱区划线：document 捕获 pointer，与点击选音解耦（suppressClickRef）
@@ -35,6 +42,8 @@ export function useNotationStroke({
       strokeRef.current = {
         pointerId,
         visitedKeys: [strokeKey],
+        /** 与 visitedKeys 对齐：每次进入该格的 clientY（越小越靠上＝波峰侧） */
+        visitClientYs: [e.clientY],
         lastHitKey: strokeKey,
         startNoteId: id,
         lastClientX: e.clientX,
@@ -87,6 +96,7 @@ export function useNotationStroke({
         const hit = pickLadderHitFromPoint(ev.clientX, ev.clientY);
         if (hit && hit.strokeKey !== s.lastHitKey) {
           s.visitedKeys.push(hit.strokeKey);
+          s.visitClientYs.push(ev.clientY);
           s.lastHitKey = hit.strokeKey;
         }
       }
@@ -115,8 +125,41 @@ export function useNotationStroke({
           ev.preventDefault();
           ev.stopPropagation();
           suppressClickRef.current = true;
-          const firstKey = s.visitedKeys[0];
-          const lastKey = s.visitedKeys[s.visitedKeys.length - 1];
+          const keys = s.visitedKeys;
+          const noteIds = keys.map((k) => noteIdForStrokeKey(k)).filter((id) => id != null && id !== "");
+          if (noteIds.length < 2) return;
+
+          const useLowestPitch =
+            hasRevisitedNoteAfterOther(noteIds) && !allSameNoteId(noteIds);
+
+          if (useLowestPitch) {
+            const { noteId: chosenId, pickIndex } = pickPeakValleyOrFallbackNoteId(
+              noteIds,
+              s.visitClientYs
+            );
+            const btn = buttonForStrokeIndex(keys, pickIndex) ?? s.startButton;
+            addNote(chosenId, { currentTarget: btn }, {
+              fromStroke: true,
+              skipPreview: true,
+            });
+            const tr = trailSnapshotFromStroke(s);
+            if (tr?.points?.length) {
+              flushSync(() => {
+                setCurrent((st) => {
+                  const i = st.currentIndex;
+                  st.notationTrails[i][0] = tr;
+                  st.notationTrails[i][1] = null;
+                });
+              });
+            }
+            queueMicrotask(() => {
+              void playSelectionPreview([chosenId]);
+            });
+            return;
+          }
+
+          const firstKey = keys[0];
+          const lastKey = keys[keys.length - 1];
           const firstEl = document.querySelector(`[data-stroke-key="${CSS.escape(firstKey)}"]`);
           const lastEl = document.querySelector(`[data-stroke-key="${CSS.escape(lastKey)}"]`);
           const firstId = firstEl?.getAttribute("data-note-id");
@@ -144,27 +187,24 @@ export function useNotationStroke({
         if (s.visitedKeys.length === 1 && moved) {
           ev.preventDefault();
           ev.stopPropagation();
-          const idx = state.currentIndex;
-          const slotBefore = state.selections[idx].length;
-          const beforeSel = [...state.selections[idx]];
           addNote(s.startNoteId, { currentTarget: s.startButton }, {
             fromStroke: true,
             skipPreview: true,
           });
           suppressClickRef.current = true;
-          if (slotBefore < 2) {
-            const tr = trailSnapshotFromStroke(s);
-            if (tr?.points?.length) {
-              flushSync(() => {
-                setCurrent((st) => {
-                  st.notationTrails[st.currentIndex][slotBefore] = tr;
-                });
+          const tr = trailSnapshotFromStroke(s);
+          if (tr?.points?.length) {
+            flushSync(() => {
+              setCurrent((st) => {
+                const i = st.currentIndex;
+                st.notationTrails[i][0] = tr;
+                st.notationTrails[i][1] = null;
               });
-            }
-            queueMicrotask(() => {
-              void playSelectionPreview([...beforeSel, s.startNoteId]);
             });
           }
+          queueMicrotask(() => {
+            void playSelectionPreview([s.startNoteId]);
+          });
         }
       }
 
@@ -178,7 +218,7 @@ export function useNotationStroke({
       document.addEventListener("pointerup", onDocUp, docOpts);
       document.addEventListener("pointercancel", onDocCancel, docOpts);
     },
-    [applyLineStroke, addNote, setCurrent, state.currentIndex, state.selections, notationAreaRef, suppressClickRef, setStrokeTrail]
+    [applyLineStroke, addNote, setCurrent, state.currentIndex, notationAreaRef, suppressClickRef, setStrokeTrail]
   );
 
   return { onNotationPointerDown };

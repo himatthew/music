@@ -80,23 +80,20 @@ export default function ComposerApp() {
         return;
       }
       const idx = state.currentIndex;
-      if (state.selections[idx].length >= 2) return;
-      const beforeSel = [...state.selections[idx]];
-      const pickedSlotIndex = beforeSel.length;
+      /** 单音点击/滑动：始终覆盖本格为一个音，不叠成双音；双音仅由跨两音划线产生 */
+      const pickedSlotIndex = 0;
       const fromRect = e?.currentTarget?.getBoundingClientRect?.();
       flushSync(() => {
         setCurrent((st) => {
           const i = st.currentIndex;
-          const arr = st.selections[i];
-          if (arr.length >= 2) return;
-          arr.push(id);
+          st.selections[i] = [id];
           st.lineRhythm[i] = false;
+          st.notationTrails[i] = [null, null];
         });
       });
       if (!opts?.skipPreview) {
-        const sel = [...beforeSel, id];
         queueMicrotask(() => {
-          void playSelectionPreview(sel);
+          void playSelectionPreview([id]);
         });
       }
       if (!fromRect) return;
@@ -115,7 +112,7 @@ export default function ComposerApp() {
         });
       });
     },
-    [setCurrent, state.currentIndex, state.selections]
+    [setCurrent, state.currentIndex]
   );
 
   const applyLineStroke = useCallback(
