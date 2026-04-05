@@ -56,6 +56,20 @@ async function ensureToneStarted() {
   }
 }
 
+/**
+ * iOS / iPad Safari：必须在用户手势回调里**同步**调用 resume/start，不能在 await 之后再启动，
+ * 否则 AudioContext 无法解锁，后续 await preload 若卡住会导致「试听点不动」。
+ */
+export function syncResumeAudioFromUserGesture() {
+  try {
+    const raw = Tone.getContext().rawContext;
+    if (raw.state === "suspended") {
+      void raw.resume();
+    }
+  } catch (_) {}
+  void Tone.start();
+}
+
 /** 同一 URL 只解码一次，避免每次试听重新 fetch/decode 导致首遍迟滞与卡顿 */
 /** @type {Map<string, Promise<Tone.ToneAudioBuffer>>} */
 const bufferByUrl = new Map();
@@ -75,13 +89,12 @@ const PRELOAD_NOTE_IDS = ["1", "2", "3", "4", "5", "6", "7"];
 let preloadAllPromise = null;
 
 /**
- * 预加载全部试听素材并启动 AudioContext；可重复 await，并发只跑一趟。
- * 宜在用户手势内尽早调用（如首次点按界面），也可在试听前 await。
+ * 预加载全部试听素材（decodeAudioData，无需先 Tone.start）。
+ * 勿在 useEffect 里隐式依赖手势；AudioContext 解锁见 syncResumeAudioFromUserGesture。
  */
 export function preloadAllNoteBuffers() {
   if (preloadAllPromise) return preloadAllPromise;
   preloadAllPromise = (async () => {
-    await ensureToneStarted();
     const urls = [];
     for (const id of PRELOAD_NOTE_IDS) {
       urls.push(audioUrlForNote(id, "long"), audioUrlForNote(id, "short"));

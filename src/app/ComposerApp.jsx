@@ -1,6 +1,6 @@
 import { flushSync } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { preloadAllNoteBuffers } from "../audioPlayback.js";
+import { preloadAllNoteBuffers, syncResumeAudioFromUserGesture } from "../audioPlayback.js";
 import { LYRIC_CHARS_PER_PHRASE, SCENES } from "../data/scenes.js";
 import { useCompositionPlayback } from "../hooks/useCompositionPlayback.js";
 import { useNotationStroke } from "../hooks/useNotationStroke.js";
@@ -37,6 +37,7 @@ export default function ComposerApp() {
   const [fullSheetOpen, setFullSheetOpen] = useState(false);
   const audioWarmRef = useRef(false);
   const onScenePointerDownCapture = useCallback(() => {
+    syncResumeAudioFromUserGesture();
     if (audioWarmRef.current) return;
     audioWarmRef.current = true;
     void preloadAllNoteBuffers();

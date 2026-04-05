@@ -5,6 +5,7 @@ import {
   playPageMelody,
   preloadAllNoteBuffers,
   stopAllPlayback,
+  syncResumeAudioFromUserGesture,
 } from "../audioPlayback.js";
 
 /**
@@ -47,6 +48,7 @@ export function useCompositionPlayback({ sceneIndex, states }) {
       return;
     }
     if (audioPlaybackBusy) return;
+    syncResumeAudioFromUserGesture();
     await preloadAllNoteBuffers();
     const token = beginPagePlayback();
     setPagePreviewPlaying(true);
@@ -64,6 +66,7 @@ export function useCompositionPlayback({ sceneIndex, states }) {
       return;
     }
     if (audioPlaybackBusy) return;
+    syncResumeAudioFromUserGesture();
     await preloadAllNoteBuffers();
     const token = beginPagePlayback();
     setAllMelodyPlaying(true);
@@ -82,6 +85,7 @@ export function useCompositionPlayback({ sceneIndex, states }) {
         return;
       }
       if (audioPlaybackBusy) return;
+      syncResumeAudioFromUserGesture();
       await preloadAllNoteBuffers();
       const token = beginPagePlayback();
       setFullSheetPlayingPage(pi);
