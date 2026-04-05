@@ -3,6 +3,7 @@ import {
   beginPagePlayback,
   playAllPagesMelody,
   playPageMelody,
+  preloadAllNoteBuffers,
   stopAllPlayback,
 } from "../audioPlayback.js";
 
@@ -46,6 +47,7 @@ export function useCompositionPlayback({ sceneIndex, states }) {
       return;
     }
     if (audioPlaybackBusy) return;
+    await preloadAllNoteBuffers();
     const token = beginPagePlayback();
     setPagePreviewPlaying(true);
     try {
@@ -62,6 +64,7 @@ export function useCompositionPlayback({ sceneIndex, states }) {
       return;
     }
     if (audioPlaybackBusy) return;
+    await preloadAllNoteBuffers();
     const token = beginPagePlayback();
     setAllMelodyPlaying(true);
     try {
@@ -79,6 +82,7 @@ export function useCompositionPlayback({ sceneIndex, states }) {
         return;
       }
       if (audioPlaybackBusy) return;
+      await preloadAllNoteBuffers();
       const token = beginPagePlayback();
       setFullSheetPlayingPage(pi);
       try {

@@ -51,6 +51,41 @@ async function ensureToneStarted() {
   }
 }
 
+/** 同一 URL 只解码一次，避免每次试听重新 fetch/decode 导致首遍迟滞与卡顿 */
+/** @type {Map<string, Promise<Tone.ToneAudioBuffer>>} */
+const bufferByUrl = new Map();
+
+function loadBufferCached(url) {
+  let p = bufferByUrl.get(url);
+  if (!p) {
+    p = Tone.ToneAudioBuffer.fromUrl(url);
+    bufferByUrl.set(url, p);
+  }
+  return p;
+}
+
+/** 简谱 1–7 长音/短音共 14 个文件；L6/L7 与 6、7 同文件 */
+const PRELOAD_NOTE_IDS = ["1", "2", "3", "4", "5", "6", "7"];
+
+let preloadAllPromise = null;
+
+/**
+ * 预加载全部试听素材并启动 AudioContext；可重复 await，并发只跑一趟。
+ * 宜在用户手势内尽早调用（如首次点按界面），也可在试听前 await。
+ */
+export function preloadAllNoteBuffers() {
+  if (preloadAllPromise) return preloadAllPromise;
+  preloadAllPromise = (async () => {
+    await ensureToneStarted();
+    const urls = [];
+    for (const id of PRELOAD_NOTE_IDS) {
+      urls.push(audioUrlForNote(id, "long"), audioUrlForNote(id, "short"));
+    }
+    await Promise.all(urls.map((u) => loadBufferCached(u)));
+  })();
+  return preloadAllPromise;
+}
+
 function disposeAllTonePlayers() {
   for (const p of activePlayers) {
     try {
@@ -88,7 +123,7 @@ async function playUrlWithTone(url, isCancelled) {
   await ensureToneStarted();
   if (isCancelled()) return;
 
-  const buffer = await Tone.ToneAudioBuffer.fromUrl(url);
+  const buffer = await loadBufferCached(url);
   if (isCancelled()) return;
 
   return new Promise((resolve) => {

@@ -1,5 +1,6 @@
 import { flushSync } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { preloadAllNoteBuffers } from "../audioPlayback.js";
 import { LYRIC_CHARS_PER_PHRASE, SCENES } from "../data/scenes.js";
 import { useCompositionPlayback } from "../hooks/useCompositionPlayback.js";
 import { useNotationStroke } from "../hooks/useNotationStroke.js";
@@ -34,6 +35,12 @@ export default function ComposerApp() {
   const [particleBurst, setParticleBurst] = useState(null);
   const [strokeTrail, setStrokeTrail] = useState(null);
   const [fullSheetOpen, setFullSheetOpen] = useState(false);
+  const audioWarmRef = useRef(false);
+  const onScenePointerDownCapture = useCallback(() => {
+    if (audioWarmRef.current) return;
+    audioWarmRef.current = true;
+    void preloadAllNoteBuffers();
+  }, []);
 
   const {
     pagePreviewPlaying,
@@ -53,6 +60,12 @@ export default function ComposerApp() {
     () => isPageComplete(state, scene.lyrics.length),
     [state, scene.lyrics.length]
   );
+
+  /** 当前页所有字都选完音后预加载试听素材，点「试听本页」时更顺滑 */
+  useEffect(() => {
+    if (!pageComplete) return;
+    void preloadAllNoteBuffers();
+  }, [pageComplete, sceneIndex]);
 
   const setCurrent = useCallback((updater) => {
     setStates((prev) => {
@@ -280,7 +293,11 @@ export default function ComposerApp() {
       }}
     >
       <div className="stage">
-        <section className="scene-card" aria-label="作曲">
+        <section
+          className="scene-card"
+          aria-label="作曲"
+          onPointerDownCapture={onScenePointerDownCapture}
+        >
           <h1 className="scene-card__title">作曲</h1>
 
           <div className="scene-card__middle">
