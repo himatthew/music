@@ -1,6 +1,5 @@
 import { flushSync } from "react-dom";
 import { useCallback, useRef } from "react";
-import { playSelectionPreview } from "../audioPlayback.js";
 import { pickLadderHitFromPoint } from "../lib/pickLadderHit.js";
 import { trailSnapshotFromStroke } from "../lib/notationState.js";
 import {
@@ -153,9 +152,6 @@ export function useNotationStroke({
                     });
                   });
                 }
-                queueMicrotask(() => {
-                  void playSelectionPreview([firstId, lastId]);
-                });
               }
               return;
             }
@@ -176,9 +172,6 @@ export function useNotationStroke({
                 });
               });
             }
-            queueMicrotask(() => {
-              void playSelectionPreview([chosenId]);
-            });
             return;
           }
 
@@ -202,9 +195,6 @@ export function useNotationStroke({
                 });
               });
             }
-            queueMicrotask(() => {
-              void playSelectionPreview([firstId, lastId]);
-            });
           }
           return;
         }
@@ -226,9 +216,6 @@ export function useNotationStroke({
               });
             });
           }
-          queueMicrotask(() => {
-            void playSelectionPreview([s.startNoteId]);
-          });
         }
       }
 

@@ -6,6 +6,8 @@ export const SCENES = [
   {
     id: "s2",
     lyrics: ["清", "晨", "阳", "光", "洒", "在", "田", "野"],
+    /** 1–4 声 + 5 轻声；与教学图示一致 */
+    lyricTones: [1, 2, 2, 1, 3, 4, 2, 3],
     palette: [
       { id: "1", t: "1" },
       { id: "2", t: "2" },
@@ -38,6 +40,7 @@ export const SCENES = [
   {
     id: "s1",
     lyrics: ["微", "风", "轻", "拂", "叶", "尖", "摇"],
+    lyricTones: [1, 1, 1, 2, 4, 1, 2],
     palette: [
       { id: "1", t: "1" },
       { id: "2", t: "2" },
@@ -70,6 +73,7 @@ export const SCENES = [
   {
     id: "s3",
     lyrics: ["师", "生", "家", "长", "齐", "心", "协", "力"],
+    lyricTones: [1, 1, 1, 3, 2, 1, 2, 4],
     palette: [
       { id: "1", t: "1" },
       { id: "2", t: "2" },
@@ -102,6 +106,7 @@ export const SCENES = [
   {
     id: "s4",
     lyrics: ["和", "睦", "故", "事", "慢", "慢", "跑"],
+    lyricTones: [2, 4, 4, 5, 4, 4, 3],
     palette: [
       { id: "1", t: "1" },
       { id: "2", t: "2" },

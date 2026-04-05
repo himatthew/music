@@ -1,11 +1,13 @@
 import { NoteGlyph } from "../notation/NoteGlyph.jsx";
 import { findEntry } from "../../lib/notePalette.js";
+import { LyricToneLine } from "./LyricToneMark.jsx";
 
 /**
- * 主界面歌词行：含飞入隐藏槽位
+ * 主界面歌词行：飞入隐藏槽位；未选音时显示声调线（与简谱互斥）
  */
 export function LyricStrip({
   lyrics,
+  lyricTones = [],
   selections,
   lineRhythm,
   currentIndex,
@@ -22,6 +24,8 @@ export function LyricStrip({
           const sel = selections[i];
           const showRhythm = lineRhythm[i] && sel.length === 2;
           const isCurrent = i === currentIndex;
+          const tone = lyricTones[i];
+          const showTone = tone != null && tone >= 1 && tone <= 5 && sel.length === 0;
           return (
             <div
               key={i}
@@ -42,8 +46,11 @@ export function LyricStrip({
                 }
               }}
             >
+              <div className="lyric-cell__grow" aria-hidden />
               <div
-                className="lyric-cell__picked-wrap"
+                className={
+                  "lyric-cell__picked-wrap" + (sel.length === 0 ? " lyric-cell__picked-wrap--empty" : "")
+                }
                 ref={(el) => {
                   lyricPickedRefs.current[i] = el;
                 }}
@@ -155,7 +162,16 @@ export function LyricStrip({
                   );
                 })()}
               </div>
-              <span className="lyric-cell__char">{ch}</span>
+              <div className="lyric-cell__char-wrap">
+                {showTone && (
+                  <div className="lyric-cell__tone-stack lyric-cell__tone-stack--on-char" aria-hidden>
+                    <div className="lyric-tone-line">
+                      <LyricToneLine tone={tone} />
+                    </div>
+                  </div>
+                )}
+                <span className="lyric-cell__char">{ch}</span>
+              </div>
             </div>
           );
         })}

@@ -1,6 +1,5 @@
 import { flushSync } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { playSelectionPreview } from "../audioPlayback.js";
 import { LYRIC_CHARS_PER_PHRASE, SCENES } from "../data/scenes.js";
 import { useCompositionPlayback } from "../hooks/useCompositionPlayback.js";
 import { useNotationStroke } from "../hooks/useNotationStroke.js";
@@ -91,11 +90,6 @@ export default function ComposerApp() {
           st.notationTrails[i] = [null, null];
         });
       });
-      if (!opts?.skipPreview) {
-        queueMicrotask(() => {
-          void playSelectionPreview([id]);
-        });
-      }
       if (!fromRect) return;
       requestAnimationFrame(() => {
         const wrap = lyricPickedRefs.current[idx];
@@ -126,11 +120,6 @@ export default function ComposerApp() {
           st.lineRhythm[i] = true;
         });
       });
-      if (!opts?.skipPreview) {
-        queueMicrotask(() => {
-          void playSelectionPreview([firstId, lastId]);
-        });
-      }
       const line =
         lastStrokeKey != null
           ? document.querySelector(`[data-stroke-key="${CSS.escape(lastStrokeKey)}"]`)
@@ -312,6 +301,7 @@ export default function ComposerApp() {
             </div>
             <LyricStrip
               lyrics={scene.lyrics}
+              lyricTones={scene.lyricTones ?? []}
               selections={state.selections}
               lineRhythm={state.lineRhythm}
               currentIndex={state.currentIndex}
