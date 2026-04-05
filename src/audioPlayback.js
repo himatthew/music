@@ -13,15 +13,18 @@ let previewToken = 0;
 /** @type {Set<Tone.Player>} */
 const activePlayers = new Set();
 
+/** >1 加快单音实际时长，减轻拖沓感（音高会略上移，试听可接受） */
+const PLAYBACK_RATE = 1.22;
+
 const HUMAN = {
-  fadeIn: 0.028,
-  fadeOut: 0.036,
-  gapNormalMin: 10,
-  gapNormalMax: 32,
-  gapTightMin: 4,
-  gapTightMax: 14,
-  volumeJitterDb: 1.4,
-  timingJitterSec: 0.01,
+  fadeIn: 0.02,
+  fadeOut: 0.028,
+  gapNormalMin: 6,
+  gapNormalMax: 22,
+  gapTightMin: 2,
+  gapTightMax: 10,
+  volumeJitterDb: 1.2,
+  timingJitterSec: 0.008,
 };
 
 function baseUrl() {
@@ -129,12 +132,13 @@ async function playUrlWithTone(url, isCancelled) {
   return new Promise((resolve) => {
     const vol = new Tone.Volume().toDestination();
     const player = new Tone.Player(buffer).connect(vol);
+    player.playbackRate = PLAYBACK_RATE;
     player.fadeIn = HUMAN.fadeIn;
     player.fadeOut = HUMAN.fadeOut;
     vol.volume.value = (Math.random() * 2 - 1) * HUMAN.volumeJitterDb;
 
     const jitter = (Math.random() * 2 - 1) * HUMAN.timingJitterSec;
-    const startAt = Tone.now() + 0.018 + jitter;
+    const startAt = Tone.now() + 0.012 + jitter;
 
     let done = false;
     const finish = () => {
@@ -155,10 +159,10 @@ async function playUrlWithTone(url, isCancelled) {
     activePlayers.add(player);
     player.start(startAt);
 
-    const dur = buffer.duration;
+    const wallSec = buffer.duration / PLAYBACK_RATE;
     window.setTimeout(() => {
       if (!done) finish();
-    }, (dur + 0.2) * 1000);
+    }, (wallSec + 0.12) * 1000);
   });
 }
 
