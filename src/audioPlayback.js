@@ -13,8 +13,10 @@ let previewToken = 0;
 /** @type {Set<Tone.Player>} */
 const activePlayers = new Set();
 
-/** >1 加快单音实际时长，减轻拖沓感（音高会略上移，试听可接受） */
-const PLAYBACK_RATE = 1.22;
+/**
+ * 只播采样前若干比例（playbackRate 保持 1），时值略短、音高不变；略截尾部衰减。
+ */
+const NOTE_PLAY_FRACTION = 0.82;
 
 const HUMAN = {
   fadeIn: 0.02,
@@ -132,13 +134,14 @@ async function playUrlWithTone(url, isCancelled) {
   return new Promise((resolve) => {
     const vol = new Tone.Volume().toDestination();
     const player = new Tone.Player(buffer).connect(vol);
-    player.playbackRate = PLAYBACK_RATE;
     player.fadeIn = HUMAN.fadeIn;
     player.fadeOut = HUMAN.fadeOut;
     vol.volume.value = (Math.random() * 2 - 1) * HUMAN.volumeJitterDb;
 
     const jitter = (Math.random() * 2 - 1) * HUMAN.timingJitterSec;
     const startAt = Tone.now() + 0.012 + jitter;
+
+    const playDur = Math.max(0.06, buffer.duration * NOTE_PLAY_FRACTION);
 
     let done = false;
     const finish = () => {
@@ -157,12 +160,12 @@ async function playUrlWithTone(url, isCancelled) {
     player.onstop = finish;
 
     activePlayers.add(player);
-    player.start(startAt);
+    player.start(startAt, 0, playDur);
 
-    const wallSec = buffer.duration / PLAYBACK_RATE;
+    const wallSec = playDur;
     window.setTimeout(() => {
       if (!done) finish();
-    }, (wallSec + 0.12) * 1000);
+    }, (wallSec + 0.14) * 1000);
   });
 }
 
