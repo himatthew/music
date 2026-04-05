@@ -391,8 +391,8 @@
 }
 
 .lyric-cell__picked:not(.lyric-cell__picked--pair):not(.lyric-cell__picked--stack) {
-  padding-top: var(--picked-notes-pad-top);
   box-sizing: border-box;
+  padding-bottom: 28px;
 }
 
 /* 低音点画在数字下方不占高度，底部略留空避免压住歌词 */
@@ -526,15 +526,15 @@
   vertical-align: baseline;
 }
 
-/* 低音点不占布局高度；行高与纯数字一致，避免 7 与 1 基线错位 */
+/* 低音点绝对定位在数字正下方，不占行高；定位上下文为数字盒 */
 .note-glyph--low {
-  position: relative;
   display: inline-block;
   vertical-align: baseline;
   line-height: 1.12;
 }
 
 .note-glyph--low .note-glyph__num {
+  position: relative;
   display: inline-block;
   text-align: center;
   font-variant-numeric: tabular-nums;
