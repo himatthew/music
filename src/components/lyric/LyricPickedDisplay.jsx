@@ -43,10 +43,16 @@ export function LyricPickedDisplay({ sel, lineRhythm, palette }) {
       </div>
     );
   }
-  if (pair) {
-    return (
-      <div className="lyric-cell__picked lyric-cell__picked--pair">
-        <div className="lyric-cell__picked-notes">
+  const showSlur = pair;
+  const isSingle = sel.length === 1;
+  return (
+    <div
+      className={
+        "lyric-cell__picked lyric-cell__picked--pair" + (isSingle ? " lyric-cell__picked--single" : "")
+      }
+    >
+      <div className="lyric-cell__picked-notes">
+        {showSlur ? (
           <svg className="picked-slur" viewBox="0 -3 100 26" preserveAspectRatio="none" aria-hidden>
             <path
               d="M 30 18 Q 50 -2 70 18"
@@ -56,24 +62,15 @@ export function LyricPickedDisplay({ sel, lineRhythm, palette }) {
               strokeLinecap="round"
             />
           </svg>
-          <div className="lyric-cell__picked-numbers">
-            {sel.map((nid, j) => (
-              <span key={j + "-" + nid} className="picked__n">
-                <NoteGlyph entry={findEntry(palette, nid)} />
-              </span>
-            ))}
-          </div>
+        ) : null}
+        <div className="lyric-cell__picked-numbers">
+          {sel.map((nid, j) => (
+            <span key={j + "-" + nid} className="picked__n">
+              <NoteGlyph entry={findEntry(palette, nid)} />
+            </span>
+          ))}
         </div>
       </div>
-    );
-  }
-  return (
-    <div className="lyric-cell__picked">
-      {sel.map((nid, j) => (
-        <span key={j + "-" + nid} className="picked__n">
-          <NoteGlyph entry={findEntry(palette, nid)} />
-        </span>
-      ))}
     </div>
   );
 }

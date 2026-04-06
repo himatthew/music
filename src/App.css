@@ -526,15 +526,15 @@
   vertical-align: baseline;
 }
 
-/* 低音点绝对定位在数字正下方，不占行高；定位上下文为数字盒 */
+/* 低音点脱离文档流，相对 note-glyph--low 底部居中；__num 仅含数字，与无点齐平 */
 .note-glyph--low {
+  position: relative;
   display: inline-block;
   vertical-align: baseline;
   line-height: 1.12;
 }
 
 .note-glyph--low .note-glyph__num {
-  position: relative;
   display: inline-block;
   text-align: center;
   font-variant-numeric: tabular-nums;
@@ -852,9 +852,17 @@
   font-variant-numeric: tabular-nums;
 }
 
-.full-sheet-tail-zero__lyric {
+/* 行内 &nbsp; 无法撑起与汉字同高，flex-end 下整列会相对同行下塌；块级 + min-height 对齐歌词行框 */
+.full-sheet-cell--tail-zero .full-sheet-tail-zero__lyric.lyric-cell__char {
   visibility: hidden;
   user-select: none;
+  display: block;
+  flex-shrink: 0;
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+  line-height: 1.4;
+  min-height: calc(1.4em + 2 * clamp(3px, 0.8vmin, 8px));
 }
 
 .full-sheet-cell {
@@ -862,9 +870,18 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: clamp(3px, 0.8vmin, 8px);
+  justify-content: flex-end;
+  gap: 2px;
   min-width: 0;
+}
+
+.full-sheet-cell:has(.lyric-cell__picked--single) {
+  gap: 28px;
+}
+
+/* 统一底部留白；带点格不再单独垫高（低音点已 absolute），同行数字齐平 */
+.full-sheet-cell .lyric-cell__picked-wrap {
+  padding-bottom: 0.35em;
 }
 
 .full-sheet-cell .lyric-cell__char {

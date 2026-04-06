@@ -3,10 +3,8 @@ export function NoteGlyph({ entry, className }) {
   if (entry.low) {
     return (
       <span className={"note-glyph note-glyph--low " + (className || "")}>
-        <span className="note-glyph__num">
-          {entry.t}
-          <span className="note-glyph__dot" aria-hidden />
-        </span>
+        <span className="note-glyph__num">{entry.t}</span>
+        <span className="note-glyph__dot" aria-hidden />
       </span>
     );
   }

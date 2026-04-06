@@ -81,7 +81,15 @@ export function FullSheetModal({
                   {pi === SCENES.length - 1 ? (
                     <div className="full-sheet-cell full-sheet-cell--tail-zero" aria-hidden>
                       <div className="lyric-cell__picked-wrap">
-                        <span className="full-sheet-trailing-zero">0</span>
+                        <div className="lyric-cell__picked lyric-cell__picked--pair lyric-cell__picked--single">
+                          <div className="lyric-cell__picked-notes">
+                            <div className="lyric-cell__picked-numbers">
+                              <span className="picked__n">
+                                <span className="note-glyph full-sheet-trailing-zero">0</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                       <span className="lyric-cell__char full-sheet-tail-zero__lyric">&nbsp;</span>
                     </div>
