@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>实时投票</title>
+    <!-- 与 vite publicDir（仓库 public/）一致：静态文件在 /imgs/icon-512.png -->
+    <link rel="icon" href="/imgs/icon-512.png?v=app-icon-20260417-2" type="image/png" sizes="any" />
+    <!-- Safari「添加到主屏幕」、部分安卓浏览器会读 apple-touch-icon -->
+    <link rel="apple-touch-icon" href="/imgs/icon-512.png?v=app-icon-20260417-2" />
+    <!-- Chrome/Android「添加到主屏幕」用 manifest 里的 icons -->
+    <link rel="manifest" href="/manifest.webmanifest?v=app-icon-20260417-2" />
+    <meta name="theme-color" content="#4a90e2" />
+    <meta name="description" content="实时投票与计分" />
+    <meta name="application-name" content="实时投票" />
+    <!-- 投票路由需在首屏同步改 manifest / icon（安卓「添加到主屏幕」、书签早于 React 解析） -->
+    <script>
+      (function () {
+        var path = window.location.pathname || "";
+        var isVote =
+          path === "/vote" ||
+          path.indexOf("/vote/") === 0 ||
+          path === "/vote-display" ||
+          path.indexOf("/vote-display/") === 0 ||
+          path === "/votes" ||
+          path.indexOf("/votes/") === 0;
+        if (!isVote) return;
+        var icon = "/imgs/vote-512.png?v=vote-icon-20260417-2";
+        var manifest = "/manifest-vote.webmanifest?v=vote-icon-20260417-2";
+        function setLink(rel, href, type) {
+          var l = document.querySelector('link[rel="' + rel + '"]');
+          if (!l) {
+            l = document.createElement("link");
+            l.setAttribute("rel", rel);
+            document.head.appendChild(l);
+          }
+          l.setAttribute("href", href);
+          if (type) l.setAttribute("type", type);
+        }
+        setLink("icon", icon, "image/png");
+        setLink("apple-touch-icon", icon);
+        setLink("manifest", manifest);
+        var t = document.querySelector("title");
+        if (t) {
+          if (path.indexOf("vote-display") !== -1) t.textContent = "实时计分";
+          else if (path.indexOf("/votes") === 0) t.textContent = "投票会场";
+          else t.textContent = "评分";
+        }
+        var tm = document.querySelector('meta[name="theme-color"]');
+        if (tm) tm.setAttribute("content", "#2185d0");
+        var an = document.querySelector('meta[name="application-name"]');
+        if (an) an.setAttribute("content", "投票");
+        var abs = window.location.origin + icon;
+        function upsertMeta(sel, attr, key, val) {
+          var el = document.querySelector(sel);
+          if (!el) {
+            el = document.createElement("meta");
+            el.setAttribute(attr, key);
+            document.head.appendChild(el);
+          }
+          el.setAttribute("content", val);
+          el.setAttribute("data-vote-branding", "1");
+        }
+        upsertMeta('meta[property="og:image"]', "property", "og:image", abs);
+        upsertMeta('meta[property="og:title"]', "property", "og:title", t ? t.textContent : "投票");
+        upsertMeta('meta[name="twitter:image"]', "name", "twitter:image", abs);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
